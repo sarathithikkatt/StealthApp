@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stealthapp"
+version = "0.1.0"
+description = "Transparent gaming overlay — invisible to screen capture"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6>=6.6.0",
+    "watchdog>=4.0.0",
+    "sounddevice>=0.4.6",
+    "numpy>=1.26.0",
+    "httpx>=0.27.0",       # Ollama API calls (async)
+    "pytchat>=0.5.5",      # YouTube live chat
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pyinstaller"]
+
+[project.scripts]
+stealthapp = "stealthapp.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
