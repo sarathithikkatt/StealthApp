@@ -32,6 +32,7 @@ DEFAULTS: dict[str, Any] = {
     "ollama_system_prompt": (
         "You are a concise assistant. Answer in 1-2 sentences."
     ),
+    "debug": False,
 }
 
 

@@ -24,9 +24,10 @@ class TranscriptionWorker(QObject):
     silence_timeout = pyqtSignal()
     model_loaded = pyqtSignal(bool, str)
 
-    def __init__(self, model_size: str = "base") -> None:
+    def __init__(self, model_size: str = "base", debug: bool = False) -> None:
         super().__init__()
         self._model_size = model_size
+        self._debug = debug
         self._proc = None
         self._reader_thread = None
         self.mutex = QMutex()
@@ -186,6 +187,8 @@ class TranscriptionWorker(QObject):
 
     def _write_transcript_to_file(self, text: str) -> None:
         """Append a timestamped transcript line to a transcripts.txt file in the project root."""
+        if not self._debug:
+            return
         try:
             root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
             path = os.path.join(root, "transcripts.txt")

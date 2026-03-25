@@ -60,7 +60,10 @@ class AudioWidget(QWidget):
         self._recorder = AudioRecorder(config)
 
         # 2. Initialize the worker AND the thread
-        self._worker = TranscriptionWorker(config.get("whisper_model", "base"))
+        self._worker = TranscriptionWorker(
+            config.get("whisper_model", "base"),
+            debug=config.get("debug", False)
+        )
         self._thread = QThread()
         self._worker.moveToThread(self._thread)
 
