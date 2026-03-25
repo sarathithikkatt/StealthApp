@@ -5,3 +5,4 @@ config.json
 *.launch.json
 *.vscode/
 *.log
+last_capture.png
