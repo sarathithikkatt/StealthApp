@@ -10,7 +10,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
 from stealthapp.ai.ollama_client import OllamaClient
+from stealthapp.core.logger import get_logger
 
+logger = get_logger(__name__)
 
 _BUBBLE_USER = """
     QLabel {
@@ -47,7 +49,7 @@ class OllamaWidget(QWidget):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        print("[OllamaWidget] __init__ start")
+        logger.info("__init__ start")
         self._client = OllamaClient(config)
         self._client.token_received.connect(self._on_token)
         self._client.response_done.connect(self._on_done)
@@ -59,9 +61,9 @@ class OllamaWidget(QWidget):
         self._build()
 
         if config.get("ollama_enabled", True):
-            print("[OllamaWidget] pinging Ollama")
+            logger.info("pinging Ollama")
             self._client.ping()
-        print("[OllamaWidget] __init__ done")
+        logger.info("__init__ done")
 
     def _build(self):
         lo = QVBoxLayout(self); lo.setContentsMargins(0,0,0,0); lo.setSpacing(0)

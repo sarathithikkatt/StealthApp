@@ -9,6 +9,9 @@ Linux   : KWin rule via D-Bus (best-effort)
 
 from __future__ import annotations
 import platform, ctypes
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 _WDA_EXCLUDEFROMCAPTURE = 0x00000011
@@ -36,14 +39,14 @@ def _apply_windows(hwnd: int) -> bool:
         user32 = ctypes.windll.user32
         ok = user32.SetWindowDisplayAffinity(ctypes.c_void_p(hwnd), _WDA_EXCLUDEFROMCAPTURE)
         if ok:
-            print("[CaptureExclusion] Windows: WDA_EXCLUDEFROMCAPTURE applied (ok)")
+            logger.info("Windows: WDA_EXCLUDEFROMCAPTURE applied (ok)")
             return True
         else:
             err = ctypes.get_last_error()
-            print(f"[CaptureExclusion] Windows: SetWindowDisplayAffinity failed (err={err})")
+            logger.error(f"Windows: SetWindowDisplayAffinity failed (err={err})")
             return False
     except Exception as e:
-        print(f"[CaptureExclusion] Windows exception: {e}")
+        logger.error(f"Windows exception: {e}")
         return False
 
 
@@ -54,14 +57,13 @@ def _apply_macos(hwnd: int) -> bool:
         from AppKit import NSApp, NSWindowSharingNone  # type: ignore
         for win in NSApp.windows():
             win.setSharingType_(NSWindowSharingNone)
-        print("[CaptureExclusion] macOS: NSWindowSharingNone applied (ok)")
+        logger.info("macOS: NSWindowSharingNone applied (ok)")
         return True
     except ImportError:
-        print("[CaptureExclusion] macOS: pyobjc-framework-Cocoa not installed.")
-        print("  Run: pip install pyobjc-framework-Cocoa")
+        logger.warning("macOS: pyobjc-framework-Cocoa not installed. Run: pip install pyobjc-framework-Cocoa")
         return False
     except Exception as e:
-        print(f"[CaptureExclusion] macOS exception: {e}")
+        logger.error(f"macOS exception: {e}")
         return False
 
 
@@ -71,6 +73,5 @@ def _apply_linux(hwnd: int) -> bool:
     # KWin supports _KDE_NET_WM_SKIP_CLOSE_ANIMATION and window rules,
     # but there's no universal X11/Wayland API for capture exclusion.
     # Best we can do is set _NET_WM_BYPASS_COMPOSITOR on the window.
-    print("[CaptureExclusion] Linux: No universal capture-exclusion API.")
-    print("  KWin users: add a Window Rule to mark this window as 'never captured'.")
+    logger.warning("Linux: No universal capture-exclusion API. KWin users: add a Window Rule to mark this window as 'never captured'.")
     return False

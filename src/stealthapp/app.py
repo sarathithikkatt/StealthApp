@@ -16,6 +16,9 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from stealthapp.core.config import Config
 from stealthapp.core.overlay_window import OverlayWindow
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def run():
@@ -24,8 +27,8 @@ def run():
     launch_dir = os.environ.get("STEALTHAPP_DIR", os.getcwd())
     os.chdir(launch_dir)
 
-    print("[stealthapp] starting up")
-    print(f"[stealthapp] launch_dir={launch_dir}")
+    logger.info("starting up")
+    logger.info(f"launch_dir={launch_dir}")
     # Enable faulthandler to capture native crashes (segfaults) to a file
     try:
         crash_path = os.path.join(launch_dir, "crash.log")
@@ -36,16 +39,18 @@ def run():
                 faulthandler.register(_sig, file=_crash_file, all_threads=True)
             except Exception:
                 pass
-        print(f"[stealthapp] faulthandler logging to {crash_path}")
+        logger.info(f"faulthandler logging to {crash_path}")
     except Exception:
         pass
     # Global exception hooks to capture unhandled exceptions and thread errors
     def _sys_excepthook(exc_type, exc_value, exc_tb):
+        logger.error("Unhandled exception:", exc_info=(exc_type, exc_value, exc_tb))
         print("[EXCEPTION] Unhandled:")
         traceback.print_exception(exc_type, exc_value, exc_tb)
 
     def _thread_excepthook(args):
         # args is threading.ExceptHookArgs
+        logger.error(f"Unhandled in thread {getattr(args,'thread',None)}", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
         print(f"[EXCEPTION] Unhandled in thread {getattr(args,'thread',None)}")
         traceback.print_exception(args.exc_type, args.exc_value, args.exc_traceback)
 
@@ -56,16 +61,16 @@ def run():
     app.setQuitOnLastWindowClosed(True)
 
     config = Config("config.json")
-    print("[stealthapp] config loaded")
+    logger.info("config loaded")
     try:
         window = OverlayWindow(config)
-        print("[stealthapp] window created")
+        logger.info("window created")
         window.show()
-        print("[stealthapp] window shown")
+        logger.info("window shown")
     except Exception as exc:
         import traceback
 
-        print("[stealthapp] exception while creating/showing window:", exc)
+        logger.error(f"exception while creating/showing window: {exc}")
         traceback.print_exc()
         sys.exit(1)
 
@@ -74,9 +79,9 @@ def run():
     except Exception as exc:
         import traceback
 
-        print("[stealthapp] exception in app.exec():", exc)
+        logger.error(f"exception in app.exec(): {exc}")
         traceback.print_exc()
         rc = 1
 
-    print(f"[stealthapp] exiting rc={rc}")
+    logger.info(f"exiting rc={rc}")
     sys.exit(rc)

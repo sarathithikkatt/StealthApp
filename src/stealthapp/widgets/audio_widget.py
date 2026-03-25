@@ -11,7 +11,9 @@ from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt
 from PyQt6.QtGui import QColor
 from stealthapp.ai.transcript import TranscriptionWorker
 from stealthapp.audio.recorder import AudioRecorder
+from stealthapp.core.logger import get_logger
 
+logger = get_logger(__name__)
 
 class _VUMeter(QWidget):
     """Simple horizontal bar VU meter."""
@@ -51,7 +53,7 @@ class AudioWidget(QWidget):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        print("[AudioWidget] __init__ start")
+        logger.info("__init__ start")
         # 1. Initialize the recorder
         self._recorder = AudioRecorder(config)
 
@@ -70,7 +72,7 @@ class AudioWidget(QWidget):
         self._recording = False
         # 4. Start the thread loop (model load deferred until user starts audio)
         self._thread.start()
-        print("[AudioWidget] transcription thread started (model load deferred)")
+        logger.info("transcription thread started (model load deferred)")
         # Decay VU meter when not recording
         self._decay = QTimer()
         self._decay.setInterval(80)
@@ -80,9 +82,9 @@ class AudioWidget(QWidget):
 
         if config.get("audio_enabled", True):
             self._auto_start()
-            print("[AudioWidget] auto_start requested")
+            logger.info("auto_start requested")
 
-        print("[AudioWidget] __init__ done")
+        logger.info("__init__ done")
 
         # Connect model-loaded signal to handler
         try:
@@ -129,9 +131,9 @@ class AudioWidget(QWidget):
             self._btn.setEnabled(False)
             try:
                 QMetaObject.invokeMethod(self._worker, "load_model", Qt.ConnectionType.QueuedConnection)
-                print("[AudioWidget] scheduled worker.load_model() on Start")
+                logger.info("scheduled worker.load_model() on Start")
             except Exception as e:
-                print("[AudioWidget] failed to schedule model load:", e)
+                logger.error(f"failed to schedule model load: {e}")
                 self._btn.setEnabled(True)
             return
 
@@ -161,7 +163,7 @@ class AudioWidget(QWidget):
         else: self._start_recording()
 
     def _on_model_loaded(self, success: bool, msg: str):
-        print(f"[AudioWidget] model_loaded: success={success} msg={msg}")
+        logger.info(f"model_loaded: success={success} msg={msg}")
         self._btn.setEnabled(True)
         if not success:
             self._info.setText(f"Model load failed: {msg}")
@@ -199,7 +201,7 @@ class AudioWidget(QWidget):
     @pyqtSlot(str)
     def _on_text_received(self, text):
         # Handle the transcribed text (e.g., add to a text edit)
-        print(f"Transcribed: {text}")
+        logger.info(f"Transcribed: {text}")
         self._info.setText(f"Last text: {text[:30]}...")
 
     def _decay_level(self):

@@ -3,6 +3,9 @@
 from __future__ import annotations
 import json, os, time, threading
 from PyQt6.QtCore import QObject, pyqtSignal
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from watchdog.observers import Observer
@@ -41,7 +44,7 @@ class StatWatcher(QObject):
     def start(self):
         self._running = True
         self._read()
-        print(f"[StatWatcher] start watching {self.filepath} (has_watchdog={_HAS_WATCHDOG})")
+        logger.info(f"start watching {self.filepath} (has_watchdog={_HAS_WATCHDOG})")
         if _HAS_WATCHDOG:
             self._start_watchdog()
         else:
@@ -54,7 +57,7 @@ class StatWatcher(QObject):
 
     def _start_watchdog(self):
         ref = self
-        print("[StatWatcher] starting watchdog observer")
+        logger.info("starting watchdog observer")
         class H(FileSystemEventHandler):
             def on_modified(self, event):
                 if os.path.abspath(event.src_path) == ref.filepath:
@@ -64,7 +67,7 @@ class StatWatcher(QObject):
         self._observer.start()
 
     def _start_poll(self):
-        print("[StatWatcher] starting poll loop")
+        logger.info("starting poll loop")
         def loop():
             mtime = 0
             while self._running:

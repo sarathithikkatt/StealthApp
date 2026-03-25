@@ -7,6 +7,9 @@ from __future__ import annotations
 import threading
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import sounddevice as sd
@@ -29,7 +32,7 @@ class AudioRecorder(QObject):
         self._device = config.get("audio_device_index", None)
         self._recording = False
         self._stream = None
-        print("[AudioRecorder] initialized, rate=", self._rate)
+        logger.info(f"initialized, rate={self._rate}")
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -40,7 +43,7 @@ class AudioRecorder(QObject):
         if self._recording:
             return
         self._recording = True
-        print("[AudioRecorder] start() called")
+        logger.info("start() called")
         threading.Thread(target=self._record_loop, daemon=True).start()
 
     def stop(self):
@@ -67,7 +70,7 @@ class AudioRecorder(QObject):
         def callback(indata: np.ndarray, frames: int, time_info, status):
             nonlocal frames_collected
             if status:
-                print(f"[Audio] {status}")
+                logger.warning(f"Audio status: {status}")
 
             mono = indata[:, 0] if indata.ndim > 1 else indata.flatten()
 
@@ -95,10 +98,10 @@ class AudioRecorder(QObject):
                 blocksize=1024,
                 callback=callback,
             ):
-                print("[AudioRecorder] InputStream opened")
+                logger.info("InputStream opened")
                 while self._recording:
                     sd.sleep(100)
         except Exception as e:
-            print("[AudioRecorder] exception in record loop:", e)
+            logger.error(f"exception in record loop: {e}")
             self.error_occurred.emit(str(e))
             self._recording = False

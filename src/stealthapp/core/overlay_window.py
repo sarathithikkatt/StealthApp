@@ -35,7 +35,9 @@ from stealthapp.core.stat_watcher import StatWatcher
 from stealthapp.widgets.audio_widget import AudioWidget
 from stealthapp.widgets.header_bar import HeaderBar
 from stealthapp.widgets.ollama_widget import OllamaWidget
+from stealthapp.core.logger import get_logger
 
+logger = get_logger(__name__)
 
 # ── Windows constants ─────────────────────────────────────────────────────────
 
@@ -69,7 +71,7 @@ def _win_set_passthrough(hwnd: int, enabled: bool) -> None:
             style = (style | _WS_EX_LAYERED) & ~_WS_EX_TRANSPARENT
         user32.SetWindowLongPtrW(hwnd, _GWL_EXSTYLE, style)
     except Exception as exc:
-        print(f"[Overlay] SetWindowLongPtr error: {exc}")
+        logger.error(f"SetWindowLongPtr error: {exc}")
 
 
 class _WinMSG(ctypes.Structure):
@@ -95,15 +97,15 @@ class OverlayWindow(QMainWindow):
         self._drag_pos: QPoint | None = None
         self._alt_held = False
 
-        print("[Overlay] __init__ start")
+        logger.info("__init__ start")
         self._init_window()
-        print("[Overlay] init_window done")
+        logger.info("init_window done")
         self._build_ui()
-        print("[Overlay] build_ui done")
+        logger.info("build_ui done")
         self._setup_shortcuts()
-        print("[Overlay] setup_shortcuts done")
+        logger.info("setup_shortcuts done")
         self._start_services()
-        print("[Overlay] start_services done")
+        logger.info("start_services done")
 
         # Deferred post-show setup (capture exclusion, pass-through, hotkey).
         QTimer.singleShot(250, self._post_show_setup)
@@ -130,7 +132,7 @@ class OverlayWindow(QMainWindow):
     # ── Post-show initialisation (Win32 side) ─────────────────────────────────
 
     def _post_show_setup(self) -> None:
-        print("[Overlay] post_show_setup start")
+        logger.info("post_show_setup start")
         self._hwnd = int(self.winId())
         capture_exclusion.apply(self._hwnd)
         _win_set_passthrough(self._hwnd, True)   # start in pass-through
@@ -154,10 +156,10 @@ class OverlayWindow(QMainWindow):
                     name="hotkey-loop",
                 ).start()
             else:
-                print("[Overlay] RegisterHotKey failed — Ctrl+H unavailable")
+                logger.warning("RegisterHotKey failed — Ctrl+H unavailable")
         except Exception as exc:
-            print(f"[Overlay] hotkey setup error: {exc}")
-        print("[Overlay] post_show_setup done")
+            logger.error(f"hotkey setup error: {exc}")
+        logger.info("post_show_setup done")
 
     # ── UI layout ─────────────────────────────────────────────────────────────
 

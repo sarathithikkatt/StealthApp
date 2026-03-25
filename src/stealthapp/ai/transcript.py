@@ -13,6 +13,9 @@ import base64
 import time
 import threading
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex, QMutexLocker
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class TranscriptionWorker(QObject):
@@ -89,21 +92,21 @@ class TranscriptionWorker(QObject):
                                 try:
                                     self._write_transcript_to_file(text)
                                 except Exception as e:
-                                    print(f"[TranscriptionWorker] write file error: {e}")
+                                    logger.error(f"write file error: {e}")
                                 try:
                                     self._send_to_ollama_async(text)
                                 except Exception as e:
-                                    print(f"[TranscriptionWorker] schedule ollama send failed: {e}")
+                                    logger.error(f"schedule ollama send failed: {e}")
                         if "error" in obj:
                             self._loading = False
                             self._ready = False
                             self.model_loaded.emit(False, obj.get("error", ""))
                 except Exception as e:
-                    print(f"[TranscriptionWorker] reader thread error: {e}")
+                    logger.error(f"reader thread error: {e}")
 
             self._reader_thread = threading.Thread(target=reader, daemon=True)
             self._reader_thread.start()
-            print(f"[TranscriptionWorker] reader thread started for pid={getattr(self._proc, 'pid', None)}")
+            logger.info(f"reader thread started for pid={getattr(self._proc, 'pid', None)}")
 
             # start a monitor to detect unexpected subprocess exit
             def monitor():
@@ -113,7 +116,7 @@ class TranscriptionWorker(QObject):
                             break
                         rc = self._proc.poll()
                         if rc is not None:
-                            print(f"[TranscriptionWorker] subprocess exited with code {rc}")
+                            logger.error(f"subprocess exited with code {rc}")
                             self._ready = False
                             self._loading = False
                             try:
@@ -123,7 +126,7 @@ class TranscriptionWorker(QObject):
                             break
                         time.sleep(1)
                 except Exception as e:
-                    print(f"[TranscriptionWorker] monitor thread error: {e}")
+                    logger.error(f"monitor thread error: {e}")
 
             tmon = threading.Thread(target=monitor, daemon=True)
             tmon.start()
@@ -134,11 +137,11 @@ class TranscriptionWorker(QObject):
                 self._proc.stdin.write(load_cmd)
                 self._proc.stdin.flush()
             except Exception as e:
-                print(f"[TranscriptionWorker] failed to send load command: {e}")
+                logger.error(f"failed to send load command: {e}")
                 self.model_loaded.emit(False, str(e))
 
         except Exception as e:
-            print(f"[TranscriptionWorker] failed to start subprocess: {e}")
+            logger.error(f"failed to start subprocess: {e}")
             self._proc = None
             self.model_loaded.emit(False, str(e))
 
@@ -152,7 +155,7 @@ class TranscriptionWorker(QObject):
             self._proc.stdin.flush()
             return True
         except Exception as e:
-            print(f"[TranscriptionWorker] send failed: {e}")
+            logger.error(f"send failed: {e}")
             # if the subprocess is broken, clear the reference so caller can retry
             try:
                 if isinstance(e, (BrokenPipeError, ConnectionResetError)):
@@ -163,10 +166,10 @@ class TranscriptionWorker(QObject):
 
     def _validate_audio(self, pcm_bytes: bytes, rate: int) -> bool:
         if not pcm_bytes:
-            print("[TranscriptionWorker] warning: empty pcm_bytes")
+            logger.warning("empty pcm_bytes")
             return False
         if not isinstance(rate, int) or rate <= 0:
-            print(f"[TranscriptionWorker] warning: invalid sample rate: {rate}")
+            logger.warning(f"invalid sample rate: {rate}")
             return False
         return True
 
@@ -178,9 +181,9 @@ class TranscriptionWorker(QObject):
             ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             with open(path, "a", encoding="utf-8") as f:
                 f.write(f"{ts} {text}\n")
-            print(f"[TranscriptionWorker] wrote transcript to: {path}")
+            logger.info(f"wrote transcript to: {path}")
         except Exception as e:
-            print(f"[TranscriptionWorker] failed to write transcript: {e}")
+            logger.error(f"failed to write transcript: {e}")
 
     def _send_to_ollama_async(self, text: str) -> None:
         """Non-blocking stub: attempt to send transcript to Ollama via `ollama_client.send_to_ollama` if available.
@@ -193,17 +196,17 @@ class TranscriptionWorker(QObject):
                 try:
                     from stealthapp.ai import ollama_client as ollama
                 except Exception:
-                    print("[TranscriptionWorker] ollama_client import failed or not present")
+                    logger.warning("ollama_client import failed or not present")
                     return
                 if hasattr(ollama, "send_to_ollama"):
                     try:
                         ollama.send_to_ollama(text)
                     except Exception as e:
-                        print(f"[TranscriptionWorker] ollama send error: {e}")
+                        logger.error(f"ollama send error: {e}")
                 else:
-                    print("[TranscriptionWorker] ollama_client.send_to_ollama not implemented")
+                    logger.warning("ollama_client.send_to_ollama not implemented")
             except Exception as e:
-                print(f"[TranscriptionWorker] unexpected error in ollama task: {e}")
+                logger.error(f"unexpected error in ollama task: {e}")
 
         t = threading.Thread(target=task, daemon=True)
         t.start()
@@ -212,12 +215,12 @@ class TranscriptionWorker(QObject):
         if not self.is_active:
             return
         if not self._validate_audio(pcm_bytes, rate):
-            print("[TranscriptionWorker] dropping invalid audio chunk")
+            logger.warning("dropping invalid audio chunk")
             return
-        print(f"[TranscriptionWorker] processing chunk size={len(pcm_bytes)} rate={rate}")
+        logger.info(f"processing chunk size={len(pcm_bytes)} rate={rate}")
         sent = self._send_transcribe(pcm_bytes, rate)
         if not sent:
-            print("[TranscriptionWorker] chunk not sent (no subprocess or send failure)")
+            logger.warning("chunk not sent (no subprocess or send failure)")
 
     def shutdown(self) -> None:
         try:

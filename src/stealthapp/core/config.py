@@ -3,6 +3,9 @@
 from __future__ import annotations
 import json, os
 from typing import Any
+from stealthapp.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 DEFAULTS: dict[str, Any] = {
@@ -44,7 +47,7 @@ class Config:
                 with open(self._path, encoding="utf-8") as f:
                     self._data.update(json.load(f))
             except json.JSONDecodeError as e:
-                print(f"[Config] JSON error in {self._path}: {e}")
+                logger.error(f"JSON error in {self._path}: {e}")
         else:
             self._save()
 
