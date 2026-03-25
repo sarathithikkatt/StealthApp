@@ -29,6 +29,7 @@ class AudioRecorder(QObject):
         self._device = config.get("audio_device_index", None)
         self._recording = False
         self._stream = None
+        print("[AudioRecorder] initialized, rate=", self._rate)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ class AudioRecorder(QObject):
         if self._recording:
             return
         self._recording = True
+        print("[AudioRecorder] start() called")
         threading.Thread(target=self._record_loop, daemon=True).start()
 
     def stop(self):
@@ -93,8 +95,10 @@ class AudioRecorder(QObject):
                 blocksize=1024,
                 callback=callback,
             ):
+                print("[AudioRecorder] InputStream opened")
                 while self._recording:
                     sd.sleep(100)
         except Exception as e:
+            print("[AudioRecorder] exception in record loop:", e)
             self.error_occurred.emit(str(e))
             self._recording = False

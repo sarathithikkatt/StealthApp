@@ -33,10 +33,8 @@ from stealthapp.core import capture_exclusion
 from stealthapp.core.config import Config
 from stealthapp.core.stat_watcher import StatWatcher
 from stealthapp.widgets.audio_widget import AudioWidget
-from stealthapp.widgets.chat_widget import ChatWidget
 from stealthapp.widgets.header_bar import HeaderBar
 from stealthapp.widgets.ollama_widget import OllamaWidget
-from stealthapp.widgets.stat_panel import StatPanel
 
 
 # ── Windows constants ─────────────────────────────────────────────────────────
@@ -97,10 +95,15 @@ class OverlayWindow(QMainWindow):
         self._drag_pos: QPoint | None = None
         self._alt_held = False
 
+        print("[Overlay] __init__ start")
         self._init_window()
+        print("[Overlay] init_window done")
         self._build_ui()
+        print("[Overlay] build_ui done")
         self._setup_shortcuts()
+        print("[Overlay] setup_shortcuts done")
         self._start_services()
+        print("[Overlay] start_services done")
 
         # Deferred post-show setup (capture exclusion, pass-through, hotkey).
         QTimer.singleShot(250, self._post_show_setup)
@@ -127,6 +130,7 @@ class OverlayWindow(QMainWindow):
     # ── Post-show initialisation (Win32 side) ─────────────────────────────────
 
     def _post_show_setup(self) -> None:
+        print("[Overlay] post_show_setup start")
         self._hwnd = int(self.winId())
         capture_exclusion.apply(self._hwnd)
         _win_set_passthrough(self._hwnd, True)   # start in pass-through
@@ -153,6 +157,7 @@ class OverlayWindow(QMainWindow):
                 print("[Overlay] RegisterHotKey failed — Ctrl+H unavailable")
         except Exception as exc:
             print(f"[Overlay] hotkey setup error: {exc}")
+        print("[Overlay] post_show_setup done")
 
     # ── UI layout ─────────────────────────────────────────────────────────────
 
@@ -174,16 +179,8 @@ class OverlayWindow(QMainWindow):
 
         self.header = HeaderBar(self.config)
         self.header.close_clicked.connect(self._quit)
-        self.header.minimize_clicked.connect(self.showMinimized)
+        self.header.minimize_clicked.connect(self._toggle_visibility)
         layout.addWidget(self.header)
-
-        self.stat_panel = StatPanel(self.config)
-        layout.addWidget(self.stat_panel)
-
-        layout.addWidget(_Divider())
-
-        self.chat_widget = ChatWidget(self.config)
-        layout.addWidget(self.chat_widget)
 
         layout.addWidget(_Divider())
 
@@ -215,9 +212,7 @@ class OverlayWindow(QMainWindow):
     # ── Background services ───────────────────────────────────────────────────
 
     def _start_services(self) -> None:
-        self._stat_watcher = StatWatcher(self.config.get("stats_file"))
-        self._stat_watcher.stats_updated.connect(self.stat_panel.update_stats)
-        self._stat_watcher.start()
+        pass
 
     # ── ALT  →  interactive mode ──────────────────────────────────────────────
 
@@ -227,7 +222,7 @@ class OverlayWindow(QMainWindow):
             _win_set_passthrough(self._hwnd, False)
         self.activateWindow()
         self.setFocus()
-        self._hint.setText("🟢  Interactive — release ALT to return input to game")
+        self._hint.setText("🟢  Interactive — release ALT to return input to desktop")
         self._hint.setStyleSheet(_hint_css(active=True))
 
     def _exit_interactive(self) -> None:

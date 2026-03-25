@@ -19,7 +19,7 @@ DEFAULTS: dict[str, Any] = {
     "youtube_enabled": False,
     "youtube_video_id": "",
     "max_chat_messages": 60,
-    "audio_enabled": True,
+    "audio_enabled": False,
     "audio_device_index": None,
     "audio_sample_rate": 16000,
     "audio_chunk_seconds": 5,
@@ -27,7 +27,7 @@ DEFAULTS: dict[str, Any] = {
     "ollama_base_url": "http://localhost:11434",
     "ollama_model": "llama3",
     "ollama_system_prompt": (
-        "You are a concise gaming assistant. Answer in 1-2 sentences."
+        "You are a concise assistant. Answer in 1-2 sentences."
     ),
 }
 

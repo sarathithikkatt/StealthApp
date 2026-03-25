@@ -1,131 +1,66 @@
 # StealthApp 🎮
 
-Transparent, always-on-top gaming overlay — **completely invisible to screen capture** (OBS, Discord, Zoom, Twitch streams).
+Transparent, always-on-top gaming overlay — designed to be invisible to screen capture tools and provide lightweight in-game overlays (stats, chat, mic VU, and Ollama chat).
 
-## Features
-- ✅ Invisible to all screen capture tools (Windows `WDA_EXCLUDEFROMCAPTURE`)
-- ✅ Live game stat panel — auto-reloads from `stats.json`
-- ✅ Twitch IRC + YouTube live chat
-- ✅ Microphone capture with VU meter (hook Whisper for STT)
-- ✅ Ollama AI chat — streams responses from your local model
-- ✅ Click-through by default, interactive on ALT hold
-- ✅ Drag to reposition (Ctrl+drag), saves position
+Key changes and notes
+- The transcription model (`faster-whisper`) is now loaded in a background worker thread so the UI starts immediately.
+- The `AudioWidget` can auto-start mic capture; disable this by setting `"audio_enabled": false` in `config.json` if you do not want the mic opened on startup.
+- On Windows, installing `sounddevice` via `pip` provides bundled PortAudio DLLs; no extra system install is required in most cases.
 
----
+Quick Start
 
-## Quick Start
-
-**Windows:**
-```bat
-setup.bat
-.venv\Scripts\activate
-stealthapp
+Windows (PowerShell):
+```powershell
+.\setup.bat
+.venv\Scripts\Activate.ps1
+python -m stealthapp
 ```
 
-**macOS / Linux:**
+macOS / Linux:
 ```bash
-chmod +x setup.sh && ./setup.sh
+./setup.sh
 source .venv/bin/activate
-stealthapp
+python -m stealthapp
 ```
 
----
+Tips
+- To avoid loading the transcription model at startup, set `"audio_enabled": false` in `config.json`.
+- If you prefer the UI to start without audio or Ollama checks, set `audio_enabled` and `ollama_enabled` to `false`.
 
-## Hotkeys
+Hotkeys
+- Hold ALT: enter interactive mode
+- Release ALT: return to click-through
+- Ctrl+drag: move overlay
+- Ctrl+H: toggle visibility
 
-| Key | Action |
-|-----|--------|
-| **Hold ALT** | Enter interactive mode (click buttons, scroll chat, type in Ollama) |
-| **Release ALT** | Return to click-through (game gets all inputs) |
-| **Ctrl + drag** | Move the overlay |
-| **Ctrl + H** | Toggle visibility |
+Configuration (`config.json`)
 
----
+`config.json` is created from `config.example.json` on first run. Useful keys:
+- `twitch_channel`, `youtube_video_id` — chat integration
+- `ollama_enabled`, `ollama_base_url`, `ollama_model` — Ollama settings
+- `audio_enabled`, `audio_device_index` — microphone capture
 
-## Configuration (`config.json`)
-
-Created automatically from `config.example.json` on first run.
-
-```json
-{
-  "twitch_channel": "your_channel",
-  "youtube_video_id": "VIDEO_ID",
-  "ollama_model": "llama3",
-  "audio_enabled": true
-}
+Dependencies & Installation
+- Install runtime dependencies into the virtual environment:
+```powershell
+python -m pip install -r requirements.txt
+```
+Or install individually:
+```powershell
+python -m pip install PyQt6 watchdog sounddevice numpy faster-whisper httpx av
 ```
 
----
+Notes
+- `sounddevice` installs PortAudio DLLs on Windows when installed via `pip`.
+- `faster-whisper` may require additional runtime libraries depending on platform and performance choices (CPU vs GPU).
 
-## Stats Integration
+Project layout
 
-Write to `stats.json` from any script or game tool:
+See `src/stealthapp/` for the application code. The overlay window is implemented in `src/stealthapp/core/overlay_window.py` and the widgets live under `src/stealthapp/widgets/`.
 
-```json
-{
-  "game": "Valorant",
-  "stats": { "KDA": "12/3/7", "HP": "87%", "FPS": "240" },
-  "custom": [{ "key": "Agent", "value": "Jett" }]
-}
-```
+Contributing
+- Run `setup.bat` (Windows) or `setup.sh` (macOS/Linux) to create the venv and install editable deps.
+- Use `python -m stealthapp` to run from the repo root.
 
-The overlay picks up changes instantly via `watchdog`.
+License: MIT
 
----
-
-## Audio / STT
-
-The `AudioWidget` captures mic audio in chunks. To add speech-to-text, edit `widgets/audio_widget.py` → `_on_chunk`:
-
-```python
-import whisper, numpy as np
-model = whisper.load_model("base")
-
-def _on_chunk(self, pcm: bytes, rate: int):
-    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32767
-    result = model.transcribe(audio, fp16=False)
-    # Send to Ollama, display, etc.
-    self._client.chat(result["text"])
-```
-
----
-
-## Ollama Setup
-
-```bash
-# Install Ollama from https://ollama.com
-ollama pull llama3
-ollama serve       # Keep this running
-```
-
-The overlay auto-detects whether Ollama is online (green dot = connected).
-
----
-
-## Project Structure
-
-```
-stealthapp/
-├── pyproject.toml
-├── setup.bat / setup.sh
-├── config.example.json
-├── stats.json
-└── src/stealthapp/
-    ├── app.py
-    ├── __main__.py
-    ├── core/
-    │   ├── config.py
-    │   ├── capture_exclusion.py   ← WDA_EXCLUDEFROMCAPTURE
-    │   ├── overlay_window.py      ← ALT pass-through fix
-    │   └── stat_watcher.py
-    ├── audio/
-    │   └── recorder.py            ← sounddevice mic capture
-    ├── ai/
-    │   └── ollama_client.py       ← streaming Ollama chat
-    └── widgets/
-        ├── header_bar.py
-        ├── stat_panel.py
-        ├── chat_widget.py
-        ├── audio_widget.py
-        └── ollama_widget.py
-```

@@ -2,6 +2,10 @@
 
 import sys
 import os
+import threading
+import traceback
+import faulthandler
+import signal
 
 # Allow running from repo root without install
 _src = os.path.join(os.path.dirname(__file__), "..", "..")
@@ -20,12 +24,59 @@ def run():
     launch_dir = os.environ.get("STEALTHAPP_DIR", os.getcwd())
     os.chdir(launch_dir)
 
+    print("[stealthapp] starting up")
+    print(f"[stealthapp] launch_dir={launch_dir}")
+    # Enable faulthandler to capture native crashes (segfaults) to a file
+    try:
+        crash_path = os.path.join(launch_dir, "crash.log")
+        _crash_file = open(crash_path, "w")
+        faulthandler.enable(file=_crash_file)
+        for _sig in (getattr(signal, s) for s in ("SIGSEGV", "SIGABRT", "SIGFPE", "SIGILL") if hasattr(signal, s)):
+            try:
+                faulthandler.register(_sig, file=_crash_file, all_threads=True)
+            except Exception:
+                pass
+        print(f"[stealthapp] faulthandler logging to {crash_path}")
+    except Exception:
+        pass
+    # Global exception hooks to capture unhandled exceptions and thread errors
+    def _sys_excepthook(exc_type, exc_value, exc_tb):
+        print("[EXCEPTION] Unhandled:")
+        traceback.print_exception(exc_type, exc_value, exc_tb)
+
+    def _thread_excepthook(args):
+        # args is threading.ExceptHookArgs
+        print(f"[EXCEPTION] Unhandled in thread {getattr(args,'thread',None)}")
+        traceback.print_exception(args.exc_type, args.exc_value, args.exc_traceback)
+
+    sys.excepthook = _sys_excepthook
+    threading.excepthook = _thread_excepthook
     app = QApplication(sys.argv)
     app.setApplicationName("StealthApp")
     app.setQuitOnLastWindowClosed(True)
 
     config = Config("config.json")
-    window = OverlayWindow(config)
-    window.show()
+    print("[stealthapp] config loaded")
+    try:
+        window = OverlayWindow(config)
+        print("[stealthapp] window created")
+        window.show()
+        print("[stealthapp] window shown")
+    except Exception as exc:
+        import traceback
 
-    sys.exit(app.exec())
+        print("[stealthapp] exception while creating/showing window:", exc)
+        traceback.print_exc()
+        sys.exit(1)
+
+    try:
+        rc = app.exec()
+    except Exception as exc:
+        import traceback
+
+        print("[stealthapp] exception in app.exec():", exc)
+        traceback.print_exc()
+        rc = 1
+
+    print(f"[stealthapp] exiting rc={rc}")
+    sys.exit(rc)

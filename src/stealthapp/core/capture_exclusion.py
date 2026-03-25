@@ -8,7 +8,7 @@ Linux   : KWin rule via D-Bus (best-effort)
 """
 
 from __future__ import annotations
-import platform, ctypes, sys
+import platform, ctypes
 
 
 _WDA_EXCLUDEFROMCAPTURE = 0x00000011
@@ -36,7 +36,7 @@ def _apply_windows(hwnd: int) -> bool:
         user32 = ctypes.windll.user32
         ok = user32.SetWindowDisplayAffinity(ctypes.c_void_p(hwnd), _WDA_EXCLUDEFROMCAPTURE)
         if ok:
-            print("[CaptureExclusion] Windows: WDA_EXCLUDEFROMCAPTURE applied ✓")
+            print("[CaptureExclusion] Windows: WDA_EXCLUDEFROMCAPTURE applied (ok)")
             return True
         else:
             err = ctypes.get_last_error()
@@ -54,7 +54,7 @@ def _apply_macos(hwnd: int) -> bool:
         from AppKit import NSApp, NSWindowSharingNone  # type: ignore
         for win in NSApp.windows():
             win.setSharingType_(NSWindowSharingNone)
-        print("[CaptureExclusion] macOS: NSWindowSharingNone applied ✓")
+        print("[CaptureExclusion] macOS: NSWindowSharingNone applied (ok)")
         return True
     except ImportError:
         print("[CaptureExclusion] macOS: pyobjc-framework-Cocoa not installed.")

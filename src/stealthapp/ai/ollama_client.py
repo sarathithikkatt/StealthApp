@@ -47,11 +47,13 @@ class OllamaClient(QObject):
 
     def ping(self):
         """Check if Ollama is running. Emits status_changed."""
+        print("[OllamaClient] ping() scheduling background check")
         threading.Thread(target=self._ping, daemon=True).start()
 
     # ── Internals ─────────────────────────────────────────────────────────────
 
     def _ping(self):
+        print("[OllamaClient] _ping start")
         try:
             with httpx.Client(timeout=3) as c:
                 r = c.get(f"{self._base}/api/tags")
@@ -61,6 +63,7 @@ class OllamaClient(QObject):
                 self.status_changed.emit("offline")
         except Exception:
             self.status_changed.emit("offline")
+        print("[OllamaClient] _ping done")
 
     def _stream_chat(self, user_message: str):
         self.status_changed.emit("thinking")
@@ -90,6 +93,7 @@ class OllamaClient(QObject):
             self._history.append({"role": "assistant", "content": full})
             self.response_done.emit(full)
             self.status_changed.emit("ready")
+            print(self._history)
         except httpx.ConnectError:
             self.error_occurred.emit("Cannot connect to Ollama.\nMake sure `ollama serve` is running.")
             self.status_changed.emit("offline")

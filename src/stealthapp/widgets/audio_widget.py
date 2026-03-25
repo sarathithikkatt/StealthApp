@@ -5,9 +5,11 @@ Connects to AudioRecorder; transcription hook is left open for Whisper.
 """
 
 from __future__ import annotations
+import time
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt
 from PyQt6.QtGui import QColor
+from stealthapp.ai.transcript import TranscriptionWorker
 from stealthapp.audio.recorder import AudioRecorder
 
 
@@ -49,12 +51,26 @@ class AudioWidget(QWidget):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        print("[AudioWidget] __init__ start")
+        # 1. Initialize the recorder
         self._recorder = AudioRecorder(config)
+
+        # 2. Initialize the worker AND the thread
+        self._worker = TranscriptionWorker(config.get("whisper_model", "base"))
+        self._thread = QThread()
+        self._worker.moveToThread(self._thread)
+
+        # 3. Connect the signals
+        self._recorder.chunk_ready.connect(self._on_chunk)
+        self._worker.text_ready.connect(self._on_text_received)
+        self._worker.silence_timeout.connect(self._stop_recording) # Auto-stop on silence
+
         self._recorder.level_changed.connect(self._on_level)
         self._recorder.error_occurred.connect(self._on_error)
-        self._recorder.chunk_ready.connect(self._on_chunk)
         self._recording = False
-
+        # 4. Start the thread loop (model load deferred until user starts audio)
+        self._thread.start()
+        print("[AudioWidget] transcription thread started (model load deferred)")
         # Decay VU meter when not recording
         self._decay = QTimer()
         self._decay.setInterval(80)
@@ -64,6 +80,15 @@ class AudioWidget(QWidget):
 
         if config.get("audio_enabled", True):
             self._auto_start()
+            print("[AudioWidget] auto_start requested")
+
+        print("[AudioWidget] __init__ done")
+
+        # Connect model-loaded signal to handler
+        try:
+            self._worker.model_loaded.connect(self._on_model_loaded)
+        except Exception:
+            pass
 
     def _build(self):
         lo = QVBoxLayout(self); lo.setContentsMargins(10,6,10,6); lo.setSpacing(4)
@@ -97,6 +122,22 @@ class AudioWidget(QWidget):
 
     def _start_recording(self):
         self._recording = True
+        # If the transcription model is not ready yet, request loading and defer starting
+        if not getattr(self._worker, "_ready", False):
+            self._pending_start = True
+            self._btn.setText("Loading…")
+            self._btn.setEnabled(False)
+            try:
+                QMetaObject.invokeMethod(self._worker, "load_model", Qt.ConnectionType.QueuedConnection)
+                print("[AudioWidget] scheduled worker.load_model() on Start")
+            except Exception as e:
+                print("[AudioWidget] failed to schedule model load:", e)
+                self._btn.setEnabled(True)
+            return
+
+        self._pending_start = False
+        self._worker.is_active = True
+        self._worker.last_activity = time.time()
         self._recorder.start()
         self._decay.start()
         self._btn.setText("Stop Mic")
@@ -107,6 +148,7 @@ class AudioWidget(QWidget):
     def _stop_recording(self):
         self._recording = False
         self._recorder.stop()
+        self._worker.is_active = False
         self._decay.stop()
         self._vu.set_level(0)
         self._btn.setText("Start Mic")
@@ -117,6 +159,18 @@ class AudioWidget(QWidget):
     def _toggle(self):
         if self._recording: self._stop_recording()
         else: self._start_recording()
+
+    def _on_model_loaded(self, success: bool, msg: str):
+        print(f"[AudioWidget] model_loaded: success={success} msg={msg}")
+        self._btn.setEnabled(True)
+        if not success:
+            self._info.setText(f"Model load failed: {msg}")
+            self._btn.setText("Start Mic")
+            self._pending_start = False
+            return
+        # If user attempted to start recording before load completed, start now
+        if getattr(self, "_pending_start", False):
+            self._start_recording()
 
     @pyqtSlot(float)
     def _on_level(self, v: float):
@@ -142,6 +196,12 @@ class AudioWidget(QWidget):
         self._info.setText(f"⚠ {msg}")
         self._stop_recording()
 
+    @pyqtSlot(str)
+    def _on_text_received(self, text):
+        # Handle the transcribed text (e.g., add to a text edit)
+        print(f"Transcribed: {text}")
+        self._info.setText(f"Last text: {text[:30]}...")
+
     def _decay_level(self):
         # Smooth decay so meter doesn't snap to zero between callbacks
         current = self._vu._level
@@ -158,3 +218,17 @@ class AudioWidget(QWidget):
             }}
             QPushButton:hover {{ background: rgba(255,255,255,0.18); }}
         """
+
+    def closeEvent(self, event):
+        """Ensures the thread is cleaned up when the widget is closed."""
+        # 1. Stop the worker's processing
+        self._worker.is_active = False
+        
+        # 2. Stop the recorder
+        self._recorder.stop()
+        
+        # 3. Quit the thread and wait for it to finish
+        self._thread.quit()
+        self._thread.wait()
+        
+        super().closeEvent(event)
