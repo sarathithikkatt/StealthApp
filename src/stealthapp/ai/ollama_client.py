@@ -4,7 +4,7 @@ Streams tokens back via a Qt signal so the UI updates incrementally.
 """
 
 from __future__ import annotations
-import json, threading
+import json, threading, time
 from PyQt6.QtCore import QObject, pyqtSignal
 from stealthapp.core.logger import get_logger
 
@@ -24,12 +24,16 @@ class OllamaClient(QObject):
     status_changed  = pyqtSignal(str)    # "thinking" / "ready" / "offline"
 
     def __init__(self, config):
+        import time
+        start_init = time.time()
         super().__init__()
         self.config = config
         self._base   = config.get("ollama_base_url", "http://localhost:11434").rstrip("/")
         self._model  = config.get("ollama_model", "llama3")
         self._system = config.get("ollama_system_prompt", "You are a concise gaming assistant.")
         self._history: list[dict] = []
+        elapsed = time.time() - start_init
+        logger.info(f"[OllamaClient] Initialized in {elapsed:.4f}s")
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -56,6 +60,8 @@ class OllamaClient(QObject):
     # ── Internals ─────────────────────────────────────────────────────────────
 
     def _ping(self):
+        import time
+        start_time = time.time()
         logger.info("_ping start")
         try:
             with httpx.Client(timeout=3) as c:
@@ -66,11 +72,16 @@ class OllamaClient(QObject):
                 self.status_changed.emit("offline")
         except Exception:
             self.status_changed.emit("offline")
-        logger.info("_ping done")
+        elapsed = time.time() - start_time
+        logger.info(f"_ping done in {elapsed:.2f}s")
 
     def _stream_chat(self, user_message: str):
         self.status_changed.emit("thinking")
         messages = [{"role": "system", "content": self._system}] + self._history
+        
+        start_time = time.time()
+        logger.info(f"[Ollama] Input: {user_message}")
+        
         full = ""
         try:
             with httpx.Client(timeout=60) as c:
@@ -96,6 +107,10 @@ class OllamaClient(QObject):
             self._history.append({"role": "assistant", "content": full})
             self.response_done.emit(full)
             self.status_changed.emit("ready")
+            
+            elapsed = time.time() - start_time
+            logger.info(f"[Ollama] Output: {full}")
+            logger.info(f"[Ollama] Response Time: {elapsed:.2f}s")
             logger.debug(f"History updated: {self._history}")
         except httpx.ConnectError:
             self.error_occurred.emit("Cannot connect to Ollama.\nMake sure `ollama serve` is running.")

@@ -11,6 +11,7 @@ import sys
 import json
 import base64
 import time
+import queue
 import threading
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex, QMutexLocker
 from stealthapp.core.logger import get_logger
@@ -31,6 +32,7 @@ class TranscriptionWorker(QObject):
         self.mutex = QMutex()
         self._loading = False
         self._ready = False
+        self._send_times = queue.Queue()
 
         # State
         self._is_active = True
@@ -54,6 +56,7 @@ class TranscriptionWorker(QObject):
         if self._proc is not None or self._loading:
             return
         self._loading = True
+        self._load_start_time = time.time()
 
         script = os.path.join(os.path.dirname(__file__), "_transcription_process.py")
         if not os.path.exists(script):
@@ -82,10 +85,21 @@ class TranscriptionWorker(QObject):
                         except Exception:
                             continue
                         if obj.get("status") == "ready":
+                            elapsed = time.time() - self._load_start_time
+                            logger.info(f"[Transcription] Model loaded in {elapsed:.2f}s")
                             self._ready = True
                             self._loading = False
                             self.model_loaded.emit(True, "")
                         if "text" in obj:
+                            try:
+                                sent_time = self._send_times.get_nowait()
+                                elapsed = time.time() - sent_time
+                                text_out = obj.get("text", "")
+                                logger.info(f"[Transcription] Output: {text_out}")
+                                logger.info(f"[Transcription] Response Time: {elapsed:.2f}s")
+                            except queue.Empty:
+                                pass
+                                
                             text = obj.get("text", "")
                             if text:
                                 self.text_ready.emit(text)
@@ -153,6 +167,7 @@ class TranscriptionWorker(QObject):
             obj = {"cmd": "transcribe", "pcm": b64, "rate": rate}
             self._proc.stdin.write(json.dumps(obj) + "\n")
             self._proc.stdin.flush()
+            self._send_times.put(time.time())
             return True
         except Exception as e:
             logger.error(f"send failed: {e}")
