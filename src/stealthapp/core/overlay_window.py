@@ -114,7 +114,7 @@ class OverlayWindow(QMainWindow):
     # ── Window flags & geometry ───────────────────────────────────────────────
 
     def _init_window(self) -> None:
-        self.setWindowTitle("StealthApp")
+        self.setWindowTitle("StealthAssistant")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint

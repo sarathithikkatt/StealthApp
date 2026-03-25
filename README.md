@@ -1,4 +1,4 @@
-# StealthApp 🎮
+# StealthAssistant 🎮
 
 Transparent, always-on-top gaming overlay — designed to be invisible to screen capture tools and provide lightweight in-game overlays (stats, chat, mic VU, and Ollama chat).
 
