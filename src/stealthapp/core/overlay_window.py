@@ -33,6 +33,7 @@ from stealthapp.core import capture_exclusion
 from stealthapp.core.config import Config
 from stealthapp.core.stat_watcher import StatWatcher
 from stealthapp.widgets.audio_widget import AudioWidget
+from stealthapp.widgets.vision_widget import VisionWidget
 from stealthapp.widgets.header_bar import HeaderBar
 from stealthapp.widgets.ollama_widget import OllamaWidget
 from stealthapp.core.logger import get_logger
@@ -191,14 +192,20 @@ class OverlayWindow(QMainWindow):
 
         layout.addWidget(_Divider())
 
+        self.vision_widget = VisionWidget(self.config)
+        layout.addWidget(self.vision_widget)
+
+        layout.addWidget(_Divider())
+
         self.ollama_widget = OllamaWidget(self.config)
         layout.addWidget(self.ollama_widget)
 
         try:
             self.audio_widget.text_transcribed.connect(self.ollama_widget.receive_transcription)
-            logger.info("[OverlayWindow] Successfully connected AudioWidget text_transcribed to OllamaWidget receive_transcription")
+            self.vision_widget.text_extracted.connect(self.ollama_widget.receive_ocr)
+            logger.info("[OverlayWindow] Successfully connected widgets to OllamaWidget")
         except Exception as e:
-            logger.error(f"[OverlayWindow] Failed to connect AudioWidget to OllamaWidget: {e}")
+            logger.error(f"[OverlayWindow] Failed to connect widgets to OllamaWidget: {e}")
 
         self._hint = QLabel(
             "Hold  ALT  to interact   ·   Ctrl+H  hide   ·   Ctrl+drag  move"

@@ -183,6 +183,26 @@ class OllamaWidget(QWidget):
             logger.error(f"[OllamaWidget] Failed to process incoming transcription: {e}")
 
     @pyqtSlot(str)
+    def receive_ocr(self, text: str):
+        if not text: return
+        try:
+            logger.info(f"[OllamaWidget] Receiving OCR text: {len(text)} chars")
+            prompt = (
+                "The following text was extracted from a screenshot during a technical interview.\n\n"
+                "Carefully analyze the content and answer the question like a candidate.\n\n"
+                "- If it is a DSA problem, explain approach, then provide solution and complexity\n"
+                "- If it is a system/design question, structure your answer clearly\n"
+                "- If the text is noisy or incomplete, make reasonable assumptions\n\n"
+                "Extracted text:\n---\n"
+                f"{text}\n---\n"
+            )
+            self._input.setText(prompt)
+            self._send()
+            logger.info("[OllamaWidget] Successfully dispatched OCR text to Ollama chat")
+        except Exception as e:
+            logger.error(f"[OllamaWidget] Failed to process incoming OCR text: {e}")
+
+    @pyqtSlot(str)
     def _on_token(self, token: str):
         self._current_text += token
         if self._current_bubble:
