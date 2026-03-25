@@ -168,6 +168,21 @@ class OllamaWidget(QWidget):
         self._client.chat(text)
 
     @pyqtSlot(str)
+    def receive_transcription(self, text: str):
+        if not text: return
+        try:
+            logger.info(f"[OllamaWidget] Receiving transcribed text: {text}")
+            current_text = self._input.text()
+            if current_text:
+                self._input.setText(current_text + " " + text)
+            else:
+                self._input.setText(text)
+            self._send()
+            logger.info("[OllamaWidget] Successfully dispatched transcribed text to Ollama chat")
+        except Exception as e:
+            logger.error(f"[OllamaWidget] Failed to process incoming transcription: {e}")
+
+    @pyqtSlot(str)
     def _on_token(self, token: str):
         self._current_text += token
         if self._current_bubble:

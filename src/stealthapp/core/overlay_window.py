@@ -194,6 +194,12 @@ class OverlayWindow(QMainWindow):
         self.ollama_widget = OllamaWidget(self.config)
         layout.addWidget(self.ollama_widget)
 
+        try:
+            self.audio_widget.text_transcribed.connect(self.ollama_widget.receive_transcription)
+            logger.info("[OverlayWindow] Successfully connected AudioWidget text_transcribed to OllamaWidget receive_transcription")
+        except Exception as e:
+            logger.error(f"[OverlayWindow] Failed to connect AudioWidget to OllamaWidget: {e}")
+
         self._hint = QLabel(
             "Hold  ALT  to interact   ·   Ctrl+H  hide   ·   Ctrl+drag  move"
         )

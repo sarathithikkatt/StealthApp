@@ -107,10 +107,6 @@ class TranscriptionWorker(QObject):
                                     self._write_transcript_to_file(text)
                                 except Exception as e:
                                     logger.error(f"write file error: {e}")
-                                try:
-                                    self._send_to_ollama_async(text)
-                                except Exception as e:
-                                    logger.error(f"schedule ollama send failed: {e}")
                         if "error" in obj:
                             self._loading = False
                             self._ready = False
@@ -200,32 +196,7 @@ class TranscriptionWorker(QObject):
         except Exception as e:
             logger.error(f"failed to write transcript: {e}")
 
-    def _send_to_ollama_async(self, text: str) -> None:
-        """Non-blocking stub: attempt to send transcript to Ollama via `ollama_client.send_to_ollama` if available.
-
-        This is a best-effort, non-fatal call. Implement `send_to_ollama(text)` in
-        `src/stealthapp/ai/ollama_client.py` to hook into the real Ollama flow.
-        """
-        def task():
-            try:
-                try:
-                    from stealthapp.ai import ollama_client as ollama
-                except Exception:
-                    logger.warning("ollama_client import failed or not present")
-                    return
-                if hasattr(ollama, "send_to_ollama"):
-                    try:
-                        ollama.send_to_ollama(text)
-                    except Exception as e:
-                        logger.error(f"ollama send error: {e}")
-                else:
-                    logger.warning("ollama_client.send_to_ollama not implemented")
-            except Exception as e:
-                logger.error(f"unexpected error in ollama task: {e}")
-
-        t = threading.Thread(target=task, daemon=True)
-        t.start()
-
+    @pyqtSlot(bytes, int)
     def process_chunk(self, pcm_bytes: bytes, rate: int) -> None:
         if not self.is_active:
             return

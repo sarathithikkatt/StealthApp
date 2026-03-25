@@ -63,12 +63,9 @@ class AudioRecorder(QObject):
     # ── Recording loop ────────────────────────────────────────────────────────
 
     def _record_loop(self):
-        chunk_frames = self._rate * self._chunk_secs
         buf: list[np.ndarray] = []
-        frames_collected = 0
 
         def callback(indata: np.ndarray, frames: int, time_info, status):
-            nonlocal frames_collected
             if status:
                 logger.warning(f"Audio status: {status}")
 
@@ -80,14 +77,6 @@ class AudioRecorder(QObject):
             self.level_changed.emit(normalized)
 
             buf.append(mono.copy())
-            frames_collected += frames
-
-            if frames_collected >= chunk_frames:
-                pcm = np.concatenate(buf)
-                pcm_bytes = (pcm * 32767).astype(np.int16).tobytes()
-                self.chunk_ready.emit(pcm_bytes, self._rate)
-                buf.clear()
-                frames_collected = 0
 
         try:
             with sd.InputStream(
@@ -101,6 +90,13 @@ class AudioRecorder(QObject):
                 logger.info("InputStream opened")
                 while self._recording:
                     sd.sleep(100)
+            
+            # Emit final buffer once recording stops
+            if buf:
+                pcm = np.concatenate(buf)
+                pcm_bytes = (pcm * 32767).astype(np.int16).tobytes()
+                logger.info(f"Emitting full buffered recording: {len(pcm_bytes)} bytes")
+                self.chunk_ready.emit(pcm_bytes, self._rate)
         except Exception as e:
             logger.error(f"exception in record loop: {e}")
             self.error_occurred.emit(str(e))

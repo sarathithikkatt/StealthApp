@@ -7,7 +7,7 @@ Connects to AudioRecorder; transcription hook is left open for Whisper.
 from __future__ import annotations
 import time
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt
+from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from stealthapp.ai.transcript import TranscriptionWorker
 from stealthapp.audio.recorder import AudioRecorder
@@ -50,6 +50,8 @@ class _VUMeter(QWidget):
 
 
 class AudioWidget(QWidget):
+    text_transcribed = pyqtSignal(str)
+
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -64,6 +66,7 @@ class AudioWidget(QWidget):
 
         # 3. Connect the signals
         self._recorder.chunk_ready.connect(self._on_chunk)
+        self._recorder.chunk_ready.connect(self._worker.process_chunk)
         self._worker.text_ready.connect(self._on_text_received)
         self._worker.silence_timeout.connect(self._stop_recording) # Auto-stop on silence
 
@@ -150,7 +153,6 @@ class AudioWidget(QWidget):
     def _stop_recording(self):
         self._recording = False
         self._recorder.stop()
-        self._worker.is_active = False
         self._decay.stop()
         self._vu.set_level(0)
         self._btn.setText("Start Mic")
@@ -180,18 +182,9 @@ class AudioWidget(QWidget):
 
     @pyqtSlot(bytes, int)
     def _on_chunk(self, pcm: bytes, rate: int):
-        """
-        PCM audio chunk is ready.
-        Hook Whisper or any STT here:
-
-            import whisper
-            model = whisper.load_model("base")
-            audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32767
-            result = model.transcribe(audio, fp16=False)
-            print(result["text"])
-        """
         kb = len(pcm) / 1024
-        self._info.setText(f"Chunk captured: {kb:.1f} KB — hook STT here")
+        self._info.setText(f"Audio captured: {kb:.1f} KB. Sent to worker.")
+        logger.info(f"[AudioWidget] Audio block captured and delegated asynchronously: {kb:.1f} KB")
 
     @pyqtSlot(str)
     def _on_error(self, msg: str):
@@ -203,6 +196,11 @@ class AudioWidget(QWidget):
         # Handle the transcribed text (e.g., add to a text edit)
         logger.info(f"Transcribed: {text}")
         self._info.setText(f"Last text: {text[:30]}...")
+        try:
+            logger.info("[AudioWidget] Emitting transcribed text to downstream components")
+            self.text_transcribed.emit(text)
+        except Exception as e:
+            logger.error(f"[AudioWidget] Failed to emit transcribed text: {e}")
 
     def _decay_level(self):
         # Smooth decay so meter doesn't snap to zero between callbacks
