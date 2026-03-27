@@ -18,7 +18,7 @@ class HeaderBar(QWidget):
         icon.setStyleSheet("color: rgba(120,200,255,0.9); font-size:14px; background:transparent;")
         layout.addWidget(icon)
 
-        title = QLabel("STEALTH OVERLAY")
+        title = QLabel("STEALTH ASSISTANT")
         title.setStyleSheet("""
             color: rgba(255,255,255,0.5);
             font-size: 9px;

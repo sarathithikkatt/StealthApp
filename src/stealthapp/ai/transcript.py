@@ -161,7 +161,7 @@ class TranscriptionWorker(QObject):
             return False
         try:
             b64 = base64.b64encode(pcm_bytes).decode()
-            obj = {"cmd": "transcribe", "pcm": b64, "rate": rate}
+            obj = {"cmd": "transcribe", "pcm": b64, "rate": rate, "model": "medium"}
             self._proc.stdin.write(json.dumps(obj) + "\n")
             self._proc.stdin.flush()
             self._send_times.put(time.time())

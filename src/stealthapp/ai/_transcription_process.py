@@ -39,6 +39,7 @@ def main():
                     WhisperModel = _WhisperModel
                     print(json.dumps({"status": f"loading model {model_size}"}), flush=True)
                     model = WhisperModel(model_size, device="cpu", compute_type="int8")
+                    # model = WhisperModel(model_size, device="cuda", compute_type="float16")
                     print(json.dumps({"status": "ready"}), flush=True)
                 except Exception as e:
                     print(json.dumps({"error": f"model load failed: {e}"}), flush=True)
@@ -53,8 +54,19 @@ def main():
                 try:
                     pcm = base64.b64decode(b64)
                     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32767.0
-                    segments, _ = model.transcribe(audio, beam_size=1)
-                    full_text = "".join([s.text for s in segments]).strip()
+                    max_val = np.max(np.abs(audio))
+                    if 0.1 < max_val < 1.0:
+                        audio = audio / max_val
+                    segments, _ = model.transcribe(
+                        audio,
+                        beam_size=5,
+                        best_of=5,
+                        language="en",
+                        vad_filter=True,
+                        initial_prompt="This is a conversation in Indian English.",
+                        temperature=[0.0, 0.2, 0.4]
+                        )
+                    full_text = "".join([s.text.strip() for s in segments]).strip()
                     print(json.dumps({"text": full_text}), flush=True)
                 except Exception as e:
                     print(json.dumps({"error": f"transcribe failed: {e}"}), flush=True)

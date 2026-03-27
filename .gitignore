@@ -6,3 +6,4 @@ config.json
 *.vscode/
 *.log
 last_capture.png
+transcripts.txt
