@@ -54,10 +54,16 @@ def _apply_windows(hwnd: int) -> bool:
 
 def _apply_macos(hwnd: int) -> bool:
     try:
-        from AppKit import NSApp, NSWindowSharingNone  # type: ignore
+        from AppKit import NSApp  # type: ignore
+        NSWindowSharingNone = 0   # safe fallback — value is stable in the macOS SDK
+        applied = 0
         for win in NSApp.windows():
             win.setSharingType_(NSWindowSharingNone)
-        logger.info("macOS: NSWindowSharingNone applied (ok)")
+            applied += 1
+        if applied == 0:
+            logger.warning("macOS: no NSWindows found yet — try increasing QTimer delay")
+            return False
+        logger.info(f"macOS: NSWindowSharingNone applied to {applied} window(s)")
         return True
     except ImportError:
         logger.warning("macOS: pyobjc-framework-Cocoa not installed. Run: pip install pyobjc-framework-Cocoa")
@@ -68,10 +74,32 @@ def _apply_macos(hwnd: int) -> bool:
 
 
 # ── Linux ─────────────────────────────────────────────────────────────────────
-
 def _apply_linux(hwnd: int) -> bool:
-    # KWin supports _KDE_NET_WM_SKIP_CLOSE_ANIMATION and window rules,
-    # but there's no universal X11/Wayland API for capture exclusion.
-    # Best we can do is set _NET_WM_BYPASS_COMPOSITOR on the window.
-    logger.warning("Linux: No universal capture-exclusion API. KWin users: add a Window Rule to mark this window as 'never captured'.")
+    # There is no universal capture-exclusion API on Linux.
+    # Wayland compositors (KWin, Mutter) are adding per-window capture
+    # exclusion via the ext-session-lock and security-context protocols,
+    # but no stable Python-accessible API exists yet (as of 2025).
+    #
+    # Best-effort: set _NET_WM_BYPASS_COMPOSITOR on the X11 window.
+    # This hints to the compositor to render this window differently,
+    # which *some* compositors honour for capture exclusion.
+    try:
+        from Xlib import display, X  # type: ignore  # pip install python-xlib
+        d = display.Display()
+        win = d.create_resource_object("window", hwnd)
+        atom = d.intern_atom("_NET_WM_BYPASS_COMPOSITOR")
+        win.change_property(atom, X.CARDINAL, 32, [2])   # 2 = always bypass
+        d.sync()
+        logger.info("Linux: _NET_WM_BYPASS_COMPOSITOR set (best-effort)")
+        return True
+    except ImportError:
+        pass  # python-xlib not installed, skip silently
+    except Exception:
+        pass  # Wayland or other non-X11 session, skip silently
+
+    logger.warning(
+        "Linux: No capture-exclusion API available. "
+        "KWin users: Settings → Window Rules → add rule for 'StealthApp' "
+        "and set 'Block compositing' to Force/Yes."
+    )
     return False
