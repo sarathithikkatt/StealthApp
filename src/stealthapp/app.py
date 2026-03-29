@@ -85,3 +85,7 @@ def run():
 
     logger.info(f"exiting rc={rc}")
     sys.exit(rc)
+
+
+if __name__ == "__main__":
+    run()
