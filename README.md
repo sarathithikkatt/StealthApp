@@ -2,6 +2,15 @@
 
 Transparent, always-on-top gaming overlay — designed to be invisible to screen capture tools and provide lightweight in-game overlays (stats, chat, mic VU, and Ollama chat).
 
+## 📸 Product Preview
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6992cfde-910d-4c52-bae0-e30df7436261" width="700"/>
+</p>
+
+<p align="center"> <em>Captured using an external device — the overlay remains invisible to screen recording tools</em> </p> 
+
+<p align="center"> <em>"Struggling with success — had to pull out my phone just to prove it exists."</em> </p>
 Key changes and notes
 - Added Vision/Screen Capture capabilities. You can capture specific windows (Google Chrome, Microsoft Teams) or your entire screen and extract text using OCR (`pytesseract`). This dynamically extracted text is automatically formatted into an interview prompt and sent directly to Ollama.
 - The transcription model (`faster-whisper`) is now loaded in a background worker thread so the UI starts immediately.
