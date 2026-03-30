@@ -27,6 +27,7 @@ class OllamaClient(AIEngine):
         self._base   = config.get("ollama_base_url", "http://localhost:11434").rstrip("/")
         self._model  = config.get("ollama_model", "llama3")
         self._system = config.get("ollama_system_prompt")
+        logger.info(f"OllamaClient initialized with base={self._base} model={self._model}")
         self._history: list[dict] = []
         elapsed = time.time() - start_init
         logger.info(f"[OllamaClient] Initialized in {elapsed:.4f}s")

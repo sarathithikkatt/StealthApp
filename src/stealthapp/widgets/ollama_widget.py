@@ -192,6 +192,7 @@ class OllamaWidget(QWidget):
                 prompt = ""
             prompt = prompt + f"{text}\n---\n"
             self._input.setText(prompt)
+            logger.info(f"[OllamaWidget] Prepared prompt for OCR text: {prompt[:200]}...")
             self._send()
             logger.info("[OllamaWidget] Successfully dispatched OCR text to Ollama chat")
         except Exception as e:

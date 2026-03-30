@@ -30,6 +30,7 @@ class TranscriptionWorker(Transcriber):
         super().__init__()
         self._model_size = model_size
         self._initial_prompt = initial_prompt
+        logger.info(f"TranscriptionWorker initialized with model_size={model_size} debug={debug}")
         self._debug = debug
         self._proc = None
         self._reader_thread = None
