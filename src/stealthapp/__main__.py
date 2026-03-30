@@ -62,7 +62,7 @@ def _unsupported():
     return 1
 
 
-def _start() -> int:
+def _start(foreground: bool = False) -> int:
     if not sys.platform.startswith("win"):
         return _unsupported()
 
@@ -74,18 +74,29 @@ def _start() -> int:
     if PID_PATH.exists():
         PID_PATH.unlink(missing_ok=True)
 
-    pythonw = Path(sys.executable).with_name("pythonw.exe")
-    if not pythonw.exists():
-        pythonw = Path(sys.executable)
+    python_exe = Path(sys.executable)
+    if foreground:
+        proc = subprocess.Popen(
+            [str(python_exe), "-m", "stealthapp.app"],
+            close_fds=True,
+        )
+    else:
+        pythonw = python_exe.with_name("pythonw.exe")
+        if not pythonw.exists():
+            pythonw = python_exe
+        proc = subprocess.Popen(
+            [str(pythonw), "-m", "stealthapp.app"],
+            creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW,
+            close_fds=True,
+        )
 
-    proc = subprocess.Popen(
-        [str(pythonw), "-m", "stealthapp.app"],
-        creationflags=DETACHED_PROCESS | CREATE_NO_WINDOW,
-        close_fds=True,
-    )
     _ensure_dir()
     PID_PATH.write_text(str(proc.pid))
     print(f"StealthApp started (pid: {proc.pid})")
+
+    if foreground:
+        return proc.wait()
+
     return 0
 
 
@@ -122,13 +133,18 @@ def _status() -> int:
 def cli(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="stealthapp")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("start")
+    start_parser = subparsers.add_parser("start")
+    start_parser.add_argument(
+        "--foreground",
+        action="store_true",
+        help="Run StealthApp in the foreground instead of in the background.",
+    )
     subparsers.add_parser("stop")
     subparsers.add_parser("status")
     args = parser.parse_args(argv)
 
     if args.command == "start":
-        return _start()
+        return _start(foreground=args.foreground)
     if args.command == "stop":
         return _stop()
     if args.command == "status":
