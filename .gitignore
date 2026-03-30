@@ -7,3 +7,4 @@ config.json
 *.log
 last_capture.png
 transcripts.txt
+logs/
