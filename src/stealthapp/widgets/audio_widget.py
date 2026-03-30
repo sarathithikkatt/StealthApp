@@ -9,7 +9,7 @@ import time
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
-from stealthapp.ai.transcript import TranscriptionWorker
+from stealthapp.ai.factory import AIEngineFactory
 from stealthapp.audio.recorder import AudioRecorder
 from stealthapp.core.logger import get_logger
 
@@ -60,10 +60,7 @@ class AudioWidget(QWidget):
         self._recorder = AudioRecorder(config)
 
         # 2. Initialize the worker AND the thread
-        self._worker = TranscriptionWorker(
-            config.get("whisper_model", "base"),
-            debug=config.get("debug", False)
-        )
+        self._worker = AIEngineFactory.create_transcriber(config)
         self._thread = QThread()
         self._worker.moveToThread(self._thread)
 

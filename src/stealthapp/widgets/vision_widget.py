@@ -14,7 +14,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QPixmap
 
-from stealthapp.ai.ocr_worker import OCRWorker
+from stealthapp.ai.factory import AIEngineFactory
 from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -86,7 +86,9 @@ class VisionWidget(QWidget):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self._worker = None
+        self._scanner = AIEngineFactory.create_ocr_scanner(config)
+        self._scanner.text_extracted.connect(self._on_ocr_success)
+        self._scanner.error_occurred.connect(self._on_ocr_error)
         self._build()
 
     def _build(self):
@@ -223,11 +225,7 @@ class VisionWidget(QWidget):
         self._start_ocr(pixmap)
 
     def _start_ocr(self, pixmap):
-        self._worker = OCRWorker(pixmap)
-        self._worker.text_extracted.connect(self._on_ocr_success)
-        self._worker.error_occurred.connect(self._on_ocr_error)
-        self._worker.finished.connect(self._worker.deleteLater)
-        self._worker.start()
+        self._scanner.scan(pixmap)
         
         # Disable buttons while processing
         for btn in (self._btn_chrome, self._btn_teams, self._btn_screen):
