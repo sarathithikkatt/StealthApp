@@ -33,6 +33,13 @@ source .venv/bin/activate
 python -m stealthapp
 ```
 
+Command-line control
+```powershell
+python -m stealthapp start
+python -m stealthapp status
+python -m stealthapp stop
+```
+
 Tips
 - To avoid loading the transcription model at startup, set `"audio_enabled": false` in `config.json`.
 - If you prefer the UI to start without audio or Ollama checks, set `audio_enabled` and `ollama_enabled` to `false`.
