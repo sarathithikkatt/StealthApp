@@ -5,7 +5,8 @@ Streams tokens back via a Qt signal so the UI updates incrementally.
 
 from __future__ import annotations
 import json, threading, time
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
+from stealthapp.ai.base import AIEngine
 from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -17,12 +18,7 @@ except ImportError:
     _HAS_HTTPX = False
 
 
-class OllamaClient(QObject):
-    token_received  = pyqtSignal(str)    # incremental token
-    response_done   = pyqtSignal(str)    # full response when complete
-    error_occurred  = pyqtSignal(str)
-    status_changed  = pyqtSignal(str)    # "thinking" / "ready" / "offline"
-
+class OllamaClient(AIEngine):
     def __init__(self, config):
         import time
         start_init = time.time()

@@ -13,17 +13,14 @@ import base64
 import time
 import queue
 import threading
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QMutex, QMutexLocker
+from PyQt6.QtCore import pyqtSignal, pyqtSlot, QMutex, QMutexLocker
+from stealthapp.ai.base import Transcriber
 from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class TranscriptionWorker(QObject):
-    text_ready = pyqtSignal(str)
-    silence_timeout = pyqtSignal()
-    model_loaded = pyqtSignal(bool, str)
-
+class TranscriptionWorker(Transcriber):
     def __init__(self, model_size: str = "base", debug: bool = False) -> None:
         super().__init__()
         self._model_size = model_size

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QScrollArea, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSlot, QTimer
-from stealthapp.ai.ollama_client import OllamaClient
+from stealthapp.ai.factory import AIEngineFactory
 from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -50,7 +50,7 @@ class OllamaWidget(QWidget):
         super().__init__()
         self.config = config
         logger.info("__init__ start")
-        self._client = OllamaClient(config)
+        self._client = AIEngineFactory.create_ai_engine(config)
         self._client.token_received.connect(self._on_token)
         self._client.response_done.connect(self._on_done)
         self._client.error_occurred.connect(self._on_error)

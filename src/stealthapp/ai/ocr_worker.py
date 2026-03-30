@@ -1,47 +1,52 @@
 """
 Background worker to perform OCR on images.
 """
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 from PyQt6.QtGui import QPixmap
-import io
-
+from stealthapp.ai.base import OCRScanner
 from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-class OCRWorker(QThread):
-    text_extracted = pyqtSignal(str)
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, pixmap: QPixmap, parent=None):
+class OCRWorker(OCRScanner):
+    # OCRWorker will be a long-lived QObject that runs scans on request.
+    # It might use internal threads or be moved to a thread.
+    
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmap = pixmap
+
+    def scan(self, pixmap: QPixmap):
         # We need a copy of the image data since QPixmap cannot be safely used across threads
         from PyQt6.QtCore import QBuffer, QIODevice
         buffer = QBuffer()
         buffer.open(QIODevice.OpenModeFlag.ReadWrite)
-        success = self.pixmap.save(buffer, "PNG")
+        success = pixmap.save(buffer, "PNG")
         if not success:
             logger.error("Failed to save pixmap to buffer")
-            self.img_bytes = b""
+            img_bytes = b""
         else:
             # Seek to beginning and read all data
             buffer.seek(0)
-            self.img_bytes = buffer.data().data()
-            logger.info(f"Pixmap converted to bytes: {len(self.img_bytes)} bytes, pixmap size: {self.pixmap.width()}x{self.pixmap.height()}")
+            img_bytes = buffer.data().data()
+            logger.info(f"Pixmap converted to bytes: {len(img_bytes)} bytes, pixmap size: {pixmap.width()}x{pixmap.height()}")
 
-    def run(self):
+        # Run OCR in a background thread to avoid blocking UI
+        import threading
+        threading.Thread(target=self._run_ocr, args=(img_bytes,), daemon=True).start()
+
+    def _run_ocr(self, img_bytes: bytes):
         try:
             import pytesseract
             from PIL import Image
             import numpy as np
+            import io
             
-            if not self.img_bytes:
+            if not img_bytes:
                 self.error_occurred.emit("Image data is empty")
                 return
             
-            logger.info(f"OCRWorker started processing image. Data size: {len(self.img_bytes)} bytes")
-            image = Image.open(io.BytesIO(self.img_bytes))
+            logger.info(f"OCRWorker started processing image. Data size: {len(img_bytes)} bytes")
+            image = Image.open(io.BytesIO(img_bytes))
             logger.info(f"Image opened: mode={image.mode}, size={image.size}")
             
             # Check if image is mostly blank
