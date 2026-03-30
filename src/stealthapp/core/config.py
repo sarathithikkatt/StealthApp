@@ -7,6 +7,11 @@ from stealthapp.core.logger import get_logger
 
 logger = get_logger(__name__)
 
+PROMPTS: dict[str, str] = {
+    "ollama_system_prompt": "DEFAULT_OLLAMA_SYSTEM_PROMPT",
+    "ollama_ocr_prompt": "DEFAULT_OLLAMA_OCR_PROMPT",
+    "whisper_initial_prompt": "DEFAULT_WHISPER_INITIAL_PROMPT",
+}
 
 DEFAULTS: dict[str, Any] = {
     "overlay_x": 20,
@@ -22,9 +27,7 @@ DEFAULTS: dict[str, Any] = {
     "ollama_enabled": True,
     "ollama_base_url": "http://localhost:11434",
     "ollama_model": "llama3",
-    "ollama_system_prompt": (
-        "You are a concise assistant. Answer in 1-2 sentences."
-    ),
+    **PROMPTS,
     "debug": False,
 }
 

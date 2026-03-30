@@ -20,11 +20,13 @@ class AIEngineFactory:
         if engine_type == "whisper":
             return TranscriptionWorker(
                 config.get("whisper_model", "base"),
+                initial_prompt=config.get("whisper_initial_prompt", "This is a conversation in Indian English."),
                 debug=config.get("debug", False)
             )
         else:
             return TranscriptionWorker(
                 config.get("whisper_model", "base"),
+                initial_prompt=config.get("whisper_initial_prompt", "This is a conversation in Indian English."),
                 debug=config.get("debug", False)
             )
 

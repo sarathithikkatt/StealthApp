@@ -187,15 +187,10 @@ class OllamaWidget(QWidget):
         if not text: return
         try:
             logger.info(f"[OllamaWidget] Receiving OCR text: {len(text)} chars")
-            prompt = (
-                "The following text was extracted from a screenshot during a technical interview.\n\n"
-                "Carefully analyze the content and answer the question like a candidate.\n\n"
-                "- If it is a DSA problem, explain approach, then provide solution and complexity\n"
-                "- If it is a system/design question, structure your answer clearly\n"
-                "- If the text is noisy or incomplete, make reasonable assumptions\n\n"
-                "Extracted text:\n---\n"
-                f"{text}\n---\n"
-            )
+            prompt = self.config.get("ollama_ocr_prompt")
+            if prompt is None:
+                prompt = ""
+            prompt = prompt + f"{text}\n---\n"
             self._input.setText(prompt)
             self._send()
             logger.info("[OllamaWidget] Successfully dispatched OCR text to Ollama chat")

@@ -18,5 +18,7 @@
   "ollama_enabled": true,
   "ollama_base_url": "http://localhost:11434",
   "ollama_model": "llama3",
-  "ollama_system_prompt": "You are a helpful gaming assistant. Be concise. Answer in 1-2 sentences."
+  "ollama_system_prompt": "You are a helpful assistant. Be concise. Answer in 1-2 sentences.",
+  "ollama_ocr_prompt": "You are a smart analyst analysing an image. The following text was extracted from a screenshot and may contain noise, formatting issues, or incomplete information.\n\nYour task is:\n1. First, clean and interpret the question. Clearly restate it in a well-structured way.\n2. If the problem is ambiguous or incomplete, explicitly state your assumptions.\n- Think step-by-step before answering\n\nExtracted text:\n---\n",
+  "whisper_initial_prompt": "This is a conversation in Indian English."
 }
