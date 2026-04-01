@@ -63,9 +63,9 @@ def main():
                         best_of=5,
                         language="en",
                         vad_filter=True,
-                        initial_prompt="This is a conversation in Indian English.",
+                        initial_prompt=obj.get("initial_prompt", "This is a conversation in Indian English."),
                         temperature=[0.0, 0.2, 0.4]
-                        )
+                    )
                     full_text = "".join([s.text.strip() for s in segments]).strip()
                     print(json.dumps({"text": full_text}), flush=True)
                 except Exception as e:

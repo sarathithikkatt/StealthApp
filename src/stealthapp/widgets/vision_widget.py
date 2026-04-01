@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 import io
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QPixmap
 

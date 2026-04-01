@@ -13,7 +13,7 @@ import base64
 import time
 import queue
 import threading
-from PyQt6.QtCore import pyqtSignal, pyqtSlot, QMutex, QMutexLocker
+from PyQt6.QtCore import pyqtSlot, QMutex, QMutexLocker
 from stealthapp.ai.base import Transcriber
 from stealthapp.core.logger import get_logger
 
@@ -21,9 +21,16 @@ logger = get_logger(__name__)
 
 
 class TranscriptionWorker(Transcriber):
-    def __init__(self, model_size: str = "base", debug: bool = False) -> None:
+    def __init__(
+        self,
+        model_size: str = "base",
+        initial_prompt: str = "This is a conversation in Indian English.",
+        debug: bool = False,
+    ) -> None:
         super().__init__()
         self._model_size = model_size
+        self._initial_prompt = initial_prompt
+        logger.info(f"TranscriptionWorker initialized with model_size={model_size} debug={debug}")
         self._debug = debug
         self._proc = None
         self._reader_thread = None
@@ -141,7 +148,11 @@ class TranscriptionWorker(Transcriber):
 
             # ask subprocess to load the model
             try:
-                load_cmd = json.dumps({"cmd": "load", "model": self._model_size}) + "\n"
+                load_cmd = json.dumps({
+                    "cmd": "load",
+                    "model": self._model_size,
+                    "initial_prompt": self._initial_prompt,
+                }) + "\n"
                 self._proc.stdin.write(load_cmd)
                 self._proc.stdin.flush()
             except Exception as e:

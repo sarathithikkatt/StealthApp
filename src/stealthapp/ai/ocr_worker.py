@@ -1,7 +1,6 @@
 """
 Background worker to perform OCR on images.
 """
-from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 from PyQt6.QtGui import QPixmap
 from stealthapp.ai.base import OCRScanner
 from stealthapp.core.logger import get_logger
