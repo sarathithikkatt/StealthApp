@@ -13,7 +13,7 @@ import base64
 import time
 import queue
 import threading
-from PyQt6.QtCore import pyqtSignal, pyqtSlot, QMutex, QMutexLocker
+from PyQt6.QtCore import pyqtSlot, QMutex, QMutexLocker
 from stealthapp.ai.base import Transcriber
 from stealthapp.core.logger import get_logger
 

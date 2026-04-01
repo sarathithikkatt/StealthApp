@@ -5,7 +5,6 @@ Streams tokens back via a Qt signal so the UI updates incrementally.
 
 from __future__ import annotations
 import json, threading, time
-from PyQt6.QtCore import pyqtSignal
 from stealthapp.ai.base import AIEngine
 from stealthapp.core.logger import get_logger
 

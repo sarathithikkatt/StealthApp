@@ -22,7 +22,6 @@ from __future__ import annotations
 import ctypes
 import os
 import platform
-import sys
 import threading
 
 from PyQt6.QtCore import Qt, QPoint, QTimer
@@ -31,7 +30,6 @@ from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWid
 
 from stealthapp.core import capture_exclusion
 from stealthapp.core.config import Config
-from stealthapp.core.stat_watcher import StatWatcher
 from stealthapp.widgets.audio_widget import AudioWidget
 from stealthapp.widgets.vision_widget import VisionWidget
 from stealthapp.widgets.header_bar import HeaderBar

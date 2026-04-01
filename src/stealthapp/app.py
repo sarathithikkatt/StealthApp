@@ -3,7 +3,6 @@
 import sys
 import os
 import threading
-import traceback
 import faulthandler
 import signal
 
@@ -13,7 +12,6 @@ if _src not in sys.path:
     sys.path.insert(0, _src)
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
 from stealthapp.core.config import Config
 from stealthapp.core.overlay_window import OverlayWindow
 from stealthapp.core.logger import get_logger

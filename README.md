@@ -1,6 +1,6 @@
 # StealthAssistant 🎮
 
-Transparent, always-on-top gaming overlay — designed to be invisible to screen capture tools and provide lightweight in-game overlays (stats, chat, mic VU, and Ollama chat).
+What if your AI assistant could see exactly what you're seeing and hear exactly what you're saying — and nobody else could tell it was there? StealthAssistant is a screen-invisible desktop overlay that pipes your screen and voice into a local LLM (Ollama), giving you real-time contextual AI responses with nothing leaving your machine.
 
 ## 📸 Product Preview
 
