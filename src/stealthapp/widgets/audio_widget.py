@@ -6,7 +6,7 @@ Connects to AudioRecorder; transcription hook is left open for Whisper.
 
 from __future__ import annotations
 import time
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
 from PyQt6.QtCore import QThread, pyqtSlot, QTimer, QMetaObject, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from stealthapp.ai.factory import AIEngineFactory
@@ -72,6 +72,7 @@ class AudioWidget(QWidget):
 
         self._recorder.level_changed.connect(self._on_level)
         self._recorder.error_occurred.connect(self._on_error)
+        self._recorder.devices_updated.connect(self._on_devices_updated)
         self._recording = False
         # 4. Start the thread loop (model load deferred until user starts audio)
         self._thread.start()
@@ -122,16 +123,84 @@ class AudioWidget(QWidget):
         self._info.setStyleSheet("color:rgba(255,255,255,0.25);font-size:10px;font-family:'Consolas',monospace;background:transparent;")
         lo.addWidget(self._info)
 
+        # Device selection row
+        device_row = QHBoxLayout()
+        device_label = QLabel("Device:")
+        device_label.setStyleSheet("color:rgba(255,255,255,0.25);font-size:9px;font-family:'Consolas',monospace;background:transparent;")
+        device_row.addWidget(device_label)
+        
+        self._device_dropdown = QComboBox()
+        self._device_dropdown.setStyleSheet("""
+            QComboBox {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.8);
+                border: 1px solid rgba(255,255,255,0.15);
+                border-radius: 3px;
+                padding: 2px 6px;
+                font-size: 9px;
+                font-family: 'Consolas', monospace;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 4px solid rgba(255,255,255,0.5);
+                margin-right: 4px;
+            }
+            QComboBox QAbstractItemView {
+                background: rgba(30,30,30,0.95);
+                color: rgba(255,255,255,0.9);
+                border: 1px solid rgba(255,255,255,0.2);
+                selection-background-color: rgba(80,200,120,0.3);
+            }
+        """)
+        self._device_dropdown.currentIndexChanged.connect(self._on_device_changed)
+        device_row.addWidget(self._device_dropdown)
+        
+        self._refresh_btn = QPushButton("⟳")
+        self._refresh_btn.setFixedSize(20, 18)
+        self._refresh_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.6);
+                border: 1px solid rgba(255,255,255,0.15);
+                border-radius: 3px;
+                font-size: 10px;
+            }
+            QPushButton:hover {
+                background: rgba(255,255,255,0.15);
+                color: rgba(255,255,255,0.8);
+            }
+        """)
+        self._refresh_btn.clicked.connect(self._refresh_devices)
+        device_row.addWidget(self._refresh_btn)
+        device_row.addStretch()
+        lo.addLayout(device_row)
+        
+        # Initialize device list
+        self._refresh_devices()
+
     def _auto_start(self):
         self._start_recording()
 
     def _start_recording(self):
         self._recording = True
+        self._device_dropdown.setEnabled(False)
+        
+        # Update status with device info
+        device_info = self._recorder.get_device_info()
+        device_name = device_info.get("name", "Unknown Device")
+        
         # If the transcription model is not ready yet, request loading and defer starting
         if not getattr(self._worker, "_ready", False):
             self._pending_start = True
             self._btn.setText("Loading…")
             self._btn.setEnabled(False)
+            self._info.setText(f"Loading model for {device_name}...")
             try:
                 QMetaObject.invokeMethod(self._worker, "load_model", Qt.ConnectionType.QueuedConnection)
                 logger.info("scheduled worker.load_model() on Start")
@@ -148,7 +217,7 @@ class AudioWidget(QWidget):
         self._btn.setText("Stop Mic")
         self._btn.setStyleSheet(self._btn_style(True))
         self._status_dot.setStyleSheet("color:rgba(80,200,120,0.9);font-size:10px;background:transparent;")
-        self._info.setText("Recording...")
+        self._info.setText(f"Recording on {device_name}...")
 
     def _stop_recording(self):
         self._recording = False
@@ -159,6 +228,7 @@ class AudioWidget(QWidget):
         self._btn.setStyleSheet(self._btn_style(False))
         self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10px;background:transparent;")
         self._info.setText("Mic inactive")
+        self._device_dropdown.setEnabled(True)
 
     def _toggle(self):
         if self._recording: self._stop_recording()
@@ -183,19 +253,24 @@ class AudioWidget(QWidget):
     @pyqtSlot(bytes, int)
     def _on_chunk(self, pcm: bytes, rate: int):
         kb = len(pcm) / 1024
-        self._info.setText(f"Audio captured: {kb:.1f} KB. Sent to worker.")
+        device_info = self._recorder.get_device_info()
+        device_name = device_info.get("name", "Unknown Device")
+        self._info.setText(f"Audio captured: {kb:.1f} KB @ {rate//1000}kHz from {device_name}")
         logger.info(f"[AudioWidget] Audio block captured and delegated asynchronously: {kb:.1f} KB")
 
     @pyqtSlot(str)
     def _on_error(self, msg: str):
         self._info.setText(f"⚠ {msg}")
         self._stop_recording()
+        self._device_dropdown.setEnabled(True)
 
     @pyqtSlot(str)
     def _on_text_received(self, text):
         # Handle the transcribed text (e.g., add to a text edit)
         logger.info(f"Transcribed: {text}")
-        self._info.setText(f"Last text: {text[:30]}...")
+        device_info = self._recorder.get_device_info()
+        device_name = device_info.get("name", "Unknown Device")
+        self._info.setText(f"Last: {text[:30]}... ({device_name})")
         try:
             logger.info("[AudioWidget] Emitting transcribed text to downstream components")
             self.text_transcribed.emit(text)
@@ -219,6 +294,63 @@ class AudioWidget(QWidget):
             QPushButton:hover {{ background: rgba(255,255,255,0.18); }}
         """
 
+    def _refresh_devices(self):
+        """Refresh the list of available audio devices"""
+        try:
+            devices = self._recorder.list_devices()
+            self._device_dropdown.clear()
+            
+            current_device_index = self.config.get("audio_device_index", None)
+            selected_index = -1
+            
+            for i, device in enumerate(devices):
+                display_name = device["name"]
+                if device["is_default"]:
+                    display_name += " (Default)"
+                if device["default_rate"] != 16000:
+                    display_name += f" @{device['default_rate']//1000}kHz"
+                
+                self._device_dropdown.addItem(display_name, device["index"])
+                
+                if current_device_index == device["index"] or (current_device_index is None and device["is_default"]):
+                    selected_index = i
+            
+            if selected_index >= 0:
+                self._device_dropdown.setCurrentIndex(selected_index)
+                # Set the device in recorder if not already set
+                if current_device_index is None:
+                    default_device = devices[selected_index]
+                    self._recorder.set_device(default_device["index"])
+            
+            logger.info(f"Refreshed {len(devices)} audio devices")
+        except Exception as e:
+            logger.error(f"Failed to refresh devices: {e}")
+            self._info.setText(f"⚠ Device refresh failed: {e}")
+    
+    @pyqtSlot(int)
+    def _on_device_changed(self, index: int):
+        """Handle device selection change"""
+        if index < 0:
+            return
+        
+        device_index = self._device_dropdown.itemData(index)
+        if device_index is not None and device_index != self.config.get("audio_device_index"):
+            success = self._recorder.set_device(device_index)
+            if success:
+                device_info = self._recorder.get_device_info()
+                logger.info(f"Device changed to: {device_info.get('name', 'Unknown')}")
+                if not self._recording:
+                    self._info.setText(f"Device: {device_info.get('name', 'Unknown')}")
+            else:
+                logger.error("Failed to change device")
+                self._info.setText("⚠ Failed to change device")
+    
+    @pyqtSlot(list)
+    def _on_devices_updated(self, devices: list):
+        """Handle device list updates"""
+        # This can be called when devices are plugged/unplugged
+        self._refresh_devices()
+    
     def closeEvent(self, event):
         """Ensures the thread is cleaned up when the widget is closed."""
         # 1. Stop the worker's processing
