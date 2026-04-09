@@ -1,2 +1,2 @@
-"""StealthApp — transparent gaming overlay."""
+"""StealthAssistant — transparent overlay assistant."""
 __version__ = "0.1.0"

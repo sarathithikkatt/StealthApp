@@ -6,11 +6,12 @@ Streams responses token-by-token.
 from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QScrollArea, QSizePolicy
+    QPushButton, QLineEdit, QScrollArea, QSizePolicy, QComboBox
 )
-from PyQt6.QtCore import Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import Qt, pyqtSlot, pyqtSignal, QThread, QTimer
 from stealthapp.ai.factory import AIEngineFactory
 from stealthapp.core.logger import get_logger
+import httpx
 
 logger = get_logger(__name__)
 
@@ -45,6 +46,30 @@ class _Bubble(QLabel):
         self.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
 
+class _ModelFetcher(QThread):
+    """Background thread that fetches installed Ollama models via httpx."""
+    models_fetched = pyqtSignal(list)
+
+    def __init__(self, base_url: str):
+        super().__init__()
+        self._base_url = base_url.rstrip("/")
+
+    def run(self):
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                resp = client.get(f"{self._base_url}/api/tags")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    names = [m.get("name", "") for m in data.get("models", [])]
+                    self.models_fetched.emit([n for n in names if n])
+                else:
+                    logger.error(f"[ModelFetcher] status={resp.status_code}")
+                    self.models_fetched.emit([])
+        except Exception as e:
+            logger.error(f"[ModelFetcher] failed: {e}")
+            self.models_fetched.emit([])
+
+
 class OllamaWidget(QWidget):
     def __init__(self, config):
         super().__init__()
@@ -59,6 +84,8 @@ class OllamaWidget(QWidget):
         self._current_text = ""
 
         self._build()
+        # Load available Ollama models asynchronously
+        self._load_available_models()
 
         if config.get("ollama_enabled", True):
             logger.info("pinging Ollama")
@@ -76,9 +103,16 @@ class OllamaWidget(QWidget):
         title.setStyleSheet("color:rgba(255,255,255,0.35);font-size:9px;font-family:'Consolas',monospace;letter-spacing:2px;background:transparent;")
         hl.addWidget(title); hl.addStretch()
 
-        self._model_lbl = QLabel(self.config.get("ollama_model","llama3"))
-        self._model_lbl.setStyleSheet("color:rgba(255,255,255,0.25);font-size:9px;font-family:'Consolas',monospace;background:transparent;")
-        hl.addWidget(self._model_lbl)
+        # Model selection combo box
+        self._model_combo = QComboBox()
+        self._model_combo.setStyleSheet("color:rgba(255,255,255,0.9);font-size:9px;font-family:'Consolas',monospace;background:rgba(255,255,255,0.07);border:none;border-radius:3px;padding:2px 4px;")
+        hl.addWidget(self._model_combo)
+        # Description label for selected model
+        self._model_desc_lbl = QLabel()
+        self._model_desc_lbl.setStyleSheet("color:rgba(255,255,255,0.5);font-size:8px;font-family:'Consolas',monospace;background:transparent;")
+        hl.addWidget(self._model_desc_lbl)
+        # Connect change signal
+        self._model_combo.currentTextChanged.connect(self._on_model_change)
 
         self._status_dot = QLabel("●")
         self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10px;background:transparent;margin-left:6px;")
@@ -237,3 +271,63 @@ class OllamaWidget(QWidget):
     def _scroll_bottom(self):
         QTimer.singleShot(40, lambda: self._scroll.verticalScrollBar().setValue(
             self._scroll.verticalScrollBar().maximum()))
+
+    # ---------------------------------------------------------------------
+    # Model selection handling (background QThread)
+    # ---------------------------------------------------------------------
+    def _on_model_change(self, model_name: str):
+        """Handle user selecting a different model from the combo box."""
+        logger.info(f"[OllamaWidget] Model changed to {model_name}")
+        # Update client and persist selection
+        self._client.set_model(model_name)
+        self.config.set("ollama_model", model_name)
+        # Update description label
+        desc = self._MODEL_DESCRIPTIONS.get(model_name, "No description available")
+        self._model_desc_lbl.setText(desc)
+
+    def _load_available_models(self):
+        """Spawn a background QThread to fetch installed Ollama models."""
+        base_url = self.config.get("ollama_base", "http://localhost:11434")
+        self._model_fetcher = _ModelFetcher(base_url)
+        self._model_fetcher.models_fetched.connect(self._on_models_fetched)
+        self._model_fetcher.start()
+
+    @pyqtSlot(list)
+    def _on_models_fetched(self, models: list):
+        """Populate combo box once background fetch completes."""
+        self._model_combo.clear()
+        if models:
+            self._model_combo.addItems(models)
+            current = self.config.get("ollama_model", "llama3")
+            if current in models:
+                self._model_combo.setCurrentText(current)
+            else:
+                self._model_combo.setCurrentIndex(0)
+            self._on_model_change(self._model_combo.currentText())
+        else:
+            # Fallback: add the configured model so the combo isn't empty
+            fallback = self.config.get("ollama_model", "llama3")
+            self._model_combo.addItem(fallback)
+            self._model_combo.setCurrentText(fallback)
+
+    # Mapping of known model names to short descriptions
+    _MODEL_DESCRIPTIONS = {
+        "llama3": "General‑purpose chat model",
+        "llama3:8b": "General‑purpose (8 B params)",
+        "llama3:70b": "High‑capability large model",
+        "codellama": "Optimized for coding tasks",
+        "codellama:7b": "Lightweight coding model",
+        "codellama:34b": "High‑accuracy coding model",
+        "mistral": "Fast & lightweight",
+        "mistral:7b": "Fast & lightweight (7 B)",
+        "mixtral": "Mixture‑of‑experts, strong reasoning",
+        "gemma": "Google Gemma model",
+        "gemma:2b": "Ultra‑lightweight Gemma",
+        "gemma:7b": "Balanced Gemma model",
+        "phi3": "Microsoft Phi‑3, small but capable",
+        "phi3:mini": "Ultra‑fast Phi‑3 mini",
+        "qwen": "Alibaba Qwen, multilingual",
+        "deepseek-coder": "Optimized for code generation",
+        "neural-chat": "Intel neural chat model",
+        "orca-mini": "Fast, lightweight Q&A model",
+    }
