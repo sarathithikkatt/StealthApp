@@ -139,8 +139,7 @@ class OverlayWindow(QMainWindow):
         if not _is_windows():
             return
 
-        # Poll ALT state so we can toggle interactive mode even when a game
-        # owns keyboard focus.
+        # Poll ALT state so we can toggle interactive mode.
         self._alt_timer = QTimer(self)
         self._alt_timer.setInterval(50)
         self._alt_timer.timeout.connect(self._poll_alt_state)
@@ -261,7 +260,7 @@ class OverlayWindow(QMainWindow):
     def _poll_alt_state(self) -> None:
         """Poll the system ALT key state (Windows) to synthesise press/release.
 
-        Necessary because a fullscreen game typically owns keyboard focus while
+        Necessary because a fullscreen applications typically owns keyboard focus while
         the overlay is in pass-through mode, so Qt never delivers key events.
         """
         try:

@@ -73,10 +73,14 @@ class OllamaClient(AIEngine):
 
     def _stream_chat(self, user_message: str):
         self.status_changed.emit("thinking")
-        messages = [{"role": "system", "content": self._system}] + self._history
+        system_prompt = self.config.get("ollama_system_prompt")
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.extend(self._history)
         
         start_time = time.time()
-        logger.info(f"[Ollama] Input: {user_message}")
+        logger.info(f"[Ollama][{self._model}] Input: {user_message}")
         
         full = ""
         try:
@@ -105,9 +109,9 @@ class OllamaClient(AIEngine):
             self.status_changed.emit("ready")
             
             elapsed = time.time() - start_time
-            logger.info(f"[Ollama] Output: {full}")
-            logger.info(f"[Ollama] Response Time: {elapsed:.2f}s")
-            logger.debug(f"History updated: {self._history}")
+            logger.info(f"[Ollama][{self._model}] Output: {full}")
+            logger.info(f"[Ollama][{self._model}] Response Time: {elapsed:.2f}s")
+            logger.debug(f"[Ollama][{self._model}] History updated: {self._history}")
         except httpx.ConnectError:
             self.error_occurred.emit("Cannot connect to Ollama.\nMake sure `ollama serve` is running.")
             self.status_changed.emit("offline")

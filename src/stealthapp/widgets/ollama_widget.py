@@ -6,11 +6,12 @@ Streams responses token-by-token.
 from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QScrollArea, QSizePolicy
+    QPushButton, QLineEdit, QScrollArea, QSizePolicy, QComboBox
 )
-from PyQt6.QtCore import Qt, pyqtSlot, QTimer
+from PyQt6.QtCore import Qt, pyqtSlot, pyqtSignal, QThread, QTimer
 from stealthapp.ai.factory import AIEngineFactory
 from stealthapp.core.logger import get_logger
+import httpx
 
 logger = get_logger(__name__)
 
@@ -18,7 +19,7 @@ _BUBBLE_USER = """
     QLabel {
         background: rgba(120,200,255,0.12);
         color: rgba(255,255,255,0.9);
-        font-size: 11px;
+        font-size:11pt;
         font-family: 'Segoe UI', sans-serif;
         border-radius: 8px;
         padding: 6px 10px;
@@ -28,7 +29,7 @@ _BUBBLE_AI = """
     QLabel {
         background: rgba(255,255,255,0.05);
         color: rgba(200,255,200,0.9);
-        font-size: 11px;
+        font-size:11pt;
         font-family: 'Segoe UI', sans-serif;
         border-radius: 8px;
         padding: 6px 10px;
@@ -45,6 +46,30 @@ class _Bubble(QLabel):
         self.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
 
+class _ModelFetcher(QThread):
+    """Background thread that fetches installed Ollama models via httpx."""
+    models_fetched = pyqtSignal(list)
+
+    def __init__(self, base_url: str):
+        super().__init__()
+        self._base_url = base_url.rstrip("/")
+
+    def run(self):
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                resp = client.get(f"{self._base_url}/api/tags")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    names = [m.get("name", "") for m in data.get("models", [])]
+                    self.models_fetched.emit([n for n in names if n])
+                else:
+                    logger.error(f"[ModelFetcher] status={resp.status_code}")
+                    self.models_fetched.emit([])
+        except Exception as e:
+            logger.error(f"[ModelFetcher] failed: {e}")
+            self.models_fetched.emit([])
+
+
 class OllamaWidget(QWidget):
     def __init__(self, config):
         super().__init__()
@@ -59,6 +84,8 @@ class OllamaWidget(QWidget):
         self._current_text = ""
 
         self._build()
+        # Load available Ollama models asynchronously
+        self._load_available_models()
 
         if config.get("ollama_enabled", True):
             logger.info("pinging Ollama")
@@ -73,20 +100,27 @@ class OllamaWidget(QWidget):
         hdr = QWidget(); hdr.setStyleSheet("background:rgba(255,255,255,0.03);")
         hl = QHBoxLayout(hdr); hl.setContentsMargins(12,5,12,5)
         title = QLabel("OLLAMA")
-        title.setStyleSheet("color:rgba(255,255,255,0.35);font-size:9px;font-family:'Consolas',monospace;letter-spacing:2px;background:transparent;")
+        title.setStyleSheet("color:rgba(255,255,255,0.35);font-size:9pt;font-family:'Consolas',monospace;letter-spacing:2px;background:transparent;")
         hl.addWidget(title); hl.addStretch()
 
-        self._model_lbl = QLabel(self.config.get("ollama_model","llama3"))
-        self._model_lbl.setStyleSheet("color:rgba(255,255,255,0.25);font-size:9px;font-family:'Consolas',monospace;background:transparent;")
-        hl.addWidget(self._model_lbl)
+        # Model selection combo box
+        self._model_combo = QComboBox()
+        self._model_combo.setStyleSheet("color:rgba(255,255,255,0.9);font-size:9pt;font-family:'Consolas',monospace;background:rgba(255,255,255,0.07);border:none;border-radius:3px;padding:2px 4px;")
+        hl.addWidget(self._model_combo)
+        # Description label for selected model
+        self._model_desc_lbl = QLabel()
+        self._model_desc_lbl.setStyleSheet("color:rgba(255,255,255,0.5);font-size:8pt;font-family:'Consolas',monospace;background:transparent;")
+        hl.addWidget(self._model_desc_lbl)
+        # Connect change signal
+        self._model_combo.currentTextChanged.connect(self._on_model_change)
 
         self._status_dot = QLabel("●")
-        self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10px;background:transparent;margin-left:6px;")
+        self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10pt;background:transparent;margin-left:6px;")
         hl.addWidget(self._status_dot)
 
         clear_btn = QPushButton("✕ clear")
         clear_btn.setFixedSize(52, 18)
-        clear_btn.setStyleSheet("QPushButton{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);border:none;border-radius:3px;font-size:9px;}QPushButton:hover{background:rgba(255,255,255,0.14);}")
+        clear_btn.setStyleSheet("QPushButton{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);border:none;border-radius:3px;font-size:9pt;}QPushButton:hover{background:rgba(255,255,255,0.14);}")
         clear_btn.clicked.connect(self._clear)
         hl.addWidget(clear_btn)
         lo.addWidget(hdr)
@@ -111,7 +145,7 @@ class OllamaWidget(QWidget):
         self._placeholder = QLabel("Ask Ollama anything…\nMake sure `ollama serve` is running.")
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setWordWrap(True)
-        self._placeholder.setStyleSheet("color:rgba(255,255,255,0.18);font-size:10px;font-family:'Consolas',monospace;padding:12px;background:transparent;")
+        self._placeholder.setStyleSheet("color:rgba(255,255,255,0.18);font-size:10pt;font-family:'Consolas',monospace;padding:12px;background:transparent;")
         self._msg_lo.insertWidget(0, self._placeholder)
 
         self._scroll.setWidget(self._msg_container)
@@ -130,7 +164,7 @@ class OllamaWidget(QWidget):
                 border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 6px;
                 padding: 4px 8px;
-                font-size: 11px;
+                font-size:11pt;
                 font-family: 'Segoe UI', sans-serif;
             }
             QLineEdit:focus { border-color: rgba(120,200,255,0.4); }
@@ -141,7 +175,7 @@ class OllamaWidget(QWidget):
         send_btn = QPushButton("↵")
         send_btn.setFixedSize(28, 26)
         send_btn.setStyleSheet("""
-            QPushButton{background:rgba(120,200,255,0.15);color:rgba(120,200,255,0.9);border:none;border-radius:5px;font-size:14px;}
+            QPushButton{background:rgba(120,200,255,0.15);color:rgba(120,200,255,0.9);border:none;border-radius:5px;font-size:14pt;}
             QPushButton:hover{background:rgba(120,200,255,0.3);}
             QPushButton:disabled{opacity:0.3;}
         """)
@@ -220,7 +254,7 @@ class OllamaWidget(QWidget):
     @pyqtSlot(str)
     def _on_status(self, status: str):
         colors = {"ready": "rgba(80,200,120,0.9)", "thinking": "rgba(255,200,50,0.9)", "offline": "rgba(255,80,80,0.7)"}
-        self._status_dot.setStyleSheet(f"color:{colors.get(status,'rgba(255,255,255,0.2)')};font-size:10px;background:transparent;margin-left:6px;")
+        self._status_dot.setStyleSheet(f"color:{colors.get(status,'rgba(255,255,255,0.2)')};font-size:10pt;background:transparent;margin-left:6px;")
 
     def _add_bubble(self, text: str, is_user: bool):
         b = _Bubble(text, is_user)
@@ -237,3 +271,65 @@ class OllamaWidget(QWidget):
     def _scroll_bottom(self):
         QTimer.singleShot(40, lambda: self._scroll.verticalScrollBar().setValue(
             self._scroll.verticalScrollBar().maximum()))
+
+    # ---------------------------------------------------------------------
+    # Model selection handling (background QThread)
+    # ---------------------------------------------------------------------
+    def _on_model_change(self, model_name: str):
+        """Handle user selecting a different model from the combo box."""
+        logger.info(f"[OllamaWidget] Model changed to {model_name}")
+        # Update client and persist selection
+        self._client.set_model(model_name)
+        self.config.set("ollama_model", model_name)
+        # Update description label
+        desc = self._MODEL_DESCRIPTIONS.get(model_name, "No description available")
+        self._model_desc_lbl.setText(desc)
+        # Clear chat history on model change
+        self._clear()
+
+    def _load_available_models(self):
+        """Spawn a background QThread to fetch installed Ollama models."""
+        base_url = self.config.get("ollama_base", "http://localhost:11434")
+        self._model_fetcher = _ModelFetcher(base_url)
+        self._model_fetcher.models_fetched.connect(self._on_models_fetched)
+        self._model_fetcher.start()
+
+    @pyqtSlot(list)
+    def _on_models_fetched(self, models: list):
+        """Populate combo box once background fetch completes."""
+        self._model_combo.clear()
+        if models:
+            self._model_combo.addItems(models)
+            current = self.config.get("ollama_model", "llama3")
+            if current in models:
+                self._model_combo.setCurrentText(current)
+            else:
+                self._model_combo.setCurrentIndex(0)
+            self._on_model_change(self._model_combo.currentText())
+        else:
+            # Fallback: add the configured model so the combo isn't empty
+            fallback = self.config.get("ollama_model", "llama3")
+            self._model_combo.addItem(fallback)
+            self._model_combo.setCurrentText(fallback)
+
+    # Mapping of known model names to short descriptions
+    _MODEL_DESCRIPTIONS = {
+        "llama3": "General‑purpose chat model",
+        "llama3:8b": "General‑purpose (8 B params)",
+        "llama3:70b": "High‑capability large model",
+        "codellama": "Optimized for coding tasks",
+        "codellama:7b": "Lightweight coding model",
+        "codellama:34b": "High‑accuracy coding model",
+        "mistral": "Fast & lightweight",
+        "mistral:7b": "Fast & lightweight (7 B)",
+        "mixtral": "Mixture‑of‑experts, strong reasoning",
+        "gemma": "Google Gemma model",
+        "gemma:2b": "Ultra‑lightweight Gemma",
+        "gemma:7b": "Balanced Gemma model",
+        "phi3": "Microsoft Phi‑3, small but capable",
+        "phi3:mini": "Ultra‑fast Phi‑3 mini",
+        "qwen": "Alibaba Qwen, multilingual",
+        "deepseek-coder": "Optimized for code generation",
+        "neural-chat": "Intel neural chat model",
+        "orca-mini": "Fast, lightweight Q&A model",
+    }

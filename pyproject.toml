@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stealthapp"
 version = "0.1.6"
-description = "Transparent gaming overlay — invisible to screen capture"
+description = "Transparent overlay — invisible to screen capture"
 requires-python = ">=3.11"
 
 dependencies = [
