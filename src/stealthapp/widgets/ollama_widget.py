@@ -19,7 +19,7 @@ _BUBBLE_USER = """
     QLabel {
         background: rgba(120,200,255,0.12);
         color: rgba(255,255,255,0.9);
-        font-size: 11px;
+        font-size:11pt;
         font-family: 'Segoe UI', sans-serif;
         border-radius: 8px;
         padding: 6px 10px;
@@ -29,7 +29,7 @@ _BUBBLE_AI = """
     QLabel {
         background: rgba(255,255,255,0.05);
         color: rgba(200,255,200,0.9);
-        font-size: 11px;
+        font-size:11pt;
         font-family: 'Segoe UI', sans-serif;
         border-radius: 8px;
         padding: 6px 10px;
@@ -100,27 +100,27 @@ class OllamaWidget(QWidget):
         hdr = QWidget(); hdr.setStyleSheet("background:rgba(255,255,255,0.03);")
         hl = QHBoxLayout(hdr); hl.setContentsMargins(12,5,12,5)
         title = QLabel("OLLAMA")
-        title.setStyleSheet("color:rgba(255,255,255,0.35);font-size:9px;font-family:'Consolas',monospace;letter-spacing:2px;background:transparent;")
+        title.setStyleSheet("color:rgba(255,255,255,0.35);font-size:9pt;font-family:'Consolas',monospace;letter-spacing:2px;background:transparent;")
         hl.addWidget(title); hl.addStretch()
 
         # Model selection combo box
         self._model_combo = QComboBox()
-        self._model_combo.setStyleSheet("color:rgba(255,255,255,0.9);font-size:9px;font-family:'Consolas',monospace;background:rgba(255,255,255,0.07);border:none;border-radius:3px;padding:2px 4px;")
+        self._model_combo.setStyleSheet("color:rgba(255,255,255,0.9);font-size:9pt;font-family:'Consolas',monospace;background:rgba(255,255,255,0.07);border:none;border-radius:3px;padding:2px 4px;")
         hl.addWidget(self._model_combo)
         # Description label for selected model
         self._model_desc_lbl = QLabel()
-        self._model_desc_lbl.setStyleSheet("color:rgba(255,255,255,0.5);font-size:8px;font-family:'Consolas',monospace;background:transparent;")
+        self._model_desc_lbl.setStyleSheet("color:rgba(255,255,255,0.5);font-size:8pt;font-family:'Consolas',monospace;background:transparent;")
         hl.addWidget(self._model_desc_lbl)
         # Connect change signal
         self._model_combo.currentTextChanged.connect(self._on_model_change)
 
         self._status_dot = QLabel("●")
-        self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10px;background:transparent;margin-left:6px;")
+        self._status_dot.setStyleSheet("color:rgba(255,255,255,0.2);font-size:10pt;background:transparent;margin-left:6px;")
         hl.addWidget(self._status_dot)
 
         clear_btn = QPushButton("✕ clear")
         clear_btn.setFixedSize(52, 18)
-        clear_btn.setStyleSheet("QPushButton{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);border:none;border-radius:3px;font-size:9px;}QPushButton:hover{background:rgba(255,255,255,0.14);}")
+        clear_btn.setStyleSheet("QPushButton{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);border:none;border-radius:3px;font-size:9pt;}QPushButton:hover{background:rgba(255,255,255,0.14);}")
         clear_btn.clicked.connect(self._clear)
         hl.addWidget(clear_btn)
         lo.addWidget(hdr)
@@ -145,7 +145,7 @@ class OllamaWidget(QWidget):
         self._placeholder = QLabel("Ask Ollama anything…\nMake sure `ollama serve` is running.")
         self._placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._placeholder.setWordWrap(True)
-        self._placeholder.setStyleSheet("color:rgba(255,255,255,0.18);font-size:10px;font-family:'Consolas',monospace;padding:12px;background:transparent;")
+        self._placeholder.setStyleSheet("color:rgba(255,255,255,0.18);font-size:10pt;font-family:'Consolas',monospace;padding:12px;background:transparent;")
         self._msg_lo.insertWidget(0, self._placeholder)
 
         self._scroll.setWidget(self._msg_container)
@@ -164,7 +164,7 @@ class OllamaWidget(QWidget):
                 border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 6px;
                 padding: 4px 8px;
-                font-size: 11px;
+                font-size:11pt;
                 font-family: 'Segoe UI', sans-serif;
             }
             QLineEdit:focus { border-color: rgba(120,200,255,0.4); }
@@ -175,7 +175,7 @@ class OllamaWidget(QWidget):
         send_btn = QPushButton("↵")
         send_btn.setFixedSize(28, 26)
         send_btn.setStyleSheet("""
-            QPushButton{background:rgba(120,200,255,0.15);color:rgba(120,200,255,0.9);border:none;border-radius:5px;font-size:14px;}
+            QPushButton{background:rgba(120,200,255,0.15);color:rgba(120,200,255,0.9);border:none;border-radius:5px;font-size:14pt;}
             QPushButton:hover{background:rgba(120,200,255,0.3);}
             QPushButton:disabled{opacity:0.3;}
         """)
@@ -254,7 +254,7 @@ class OllamaWidget(QWidget):
     @pyqtSlot(str)
     def _on_status(self, status: str):
         colors = {"ready": "rgba(80,200,120,0.9)", "thinking": "rgba(255,200,50,0.9)", "offline": "rgba(255,80,80,0.7)"}
-        self._status_dot.setStyleSheet(f"color:{colors.get(status,'rgba(255,255,255,0.2)')};font-size:10px;background:transparent;margin-left:6px;")
+        self._status_dot.setStyleSheet(f"color:{colors.get(status,'rgba(255,255,255,0.2)')};font-size:10pt;background:transparent;margin-left:6px;")
 
     def _add_bubble(self, text: str, is_user: bool):
         b = _Bubble(text, is_user)
@@ -284,6 +284,8 @@ class OllamaWidget(QWidget):
         # Update description label
         desc = self._MODEL_DESCRIPTIONS.get(model_name, "No description available")
         self._model_desc_lbl.setText(desc)
+        # Clear chat history on model change
+        self._clear()
 
     def _load_available_models(self):
         """Spawn a background QThread to fetch installed Ollama models."""
