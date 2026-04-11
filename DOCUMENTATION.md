@@ -17,6 +17,13 @@ The application is built using PyQt6 and follows a modular architecture:
 
 ## Core Modules
 
+### `stealthapp/__main__.py`
+**Command Line Interface**
+- Implements `start`, `stop`, and `status` commands.
+- **`start`**: On Windows, it tries to use `pythonw.exe` for background execution unless `--foreground` is specified. It writes a PID file to `~/.stealthapp/stealthapp.pid`.
+- **`stop`**: Kills the process using the PID from the PID file.
+- **`status`**: Checks if the PID is alive.
+
 ### `stealthapp/app.py`
 **Main application bootstrap module**
 - **`run()`** - Application entry point that initializes Qt, loads config, sets up crash handling, and starts the main window.
