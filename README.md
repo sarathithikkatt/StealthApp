@@ -11,111 +11,120 @@ What if your AI assistant could see exactly what you're seeing and hear exactly 
 <p align="center"> <em>Captured using an external device — the overlay remains invisible to screen recording tools</em> </p> 
 
 <p align="center"> <em>"Struggling with success — had to pull out my phone just to prove it exists."</em> </p>
-Key changes and notes
-- Added Vision/Screen Capture capabilities. You can capture specific windows (Google Chrome, Microsoft Teams) or your entire screen and extract text using OCR (`pytesseract`). This dynamically extracted text is automatically formatted into an interview prompt and sent directly to Ollama.
-- The transcription model (`faster-whisper`) is now loaded in a background worker thread so the UI starts immediately.
-- The `AudioWidget` can auto-start mic capture; disable this by setting `"audio_enabled": false` in `config.json` if you do not want the mic opened on startup.
-- On Windows, installing `sounddevice` via `pip` provides bundled PortAudio DLLs; no extra system install is required in most cases.
+## 🚀 Features
 
-Quick Start
+- **Invisible Overlay**: Screen-invisible desktop overlay using OS-level capture exclusion.
+- **Vision & OCR**: Capture specific windows (Chrome, Teams) or the entire screen and extract text using Tesseract OCR.
+- **Audio Transcription**: Real-time microphone transcription using `faster-whisper` (runs in a background process).
+- **Local AI Integration**: Connects to [Ollama](https://ollama.com/) for private, local LLM responses.
+- **Discreet Control**: Hotkeys for toggling visibility and interactivity (ALT, Ctrl+H).
 
-Windows (PowerShell):
+## 🛠️ Installation
+
+### 1. Prerequisites
+
+- **Python 3.11+**: Ensure Python is installed and added to your PATH.
+- **Tesseract OCR**: Required for vision features.
+  - **Windows**: [Download Installer](https://github.com/UB-Mannheim/tesseract/wiki) or `choco install tesseract`.
+  - **macOS**: `brew install tesseract`.
+  - **Linux**: `sudo apt install tesseract-ocr`.
+- **Ollama**: [Download and Install Ollama](https://ollama.com/).
+
+### 2. Setup
+
+Clone the repository and run the setup script for your platform:
+
+#### Windows (PowerShell)
 ```powershell
+git clone https://github.com/sarathithikkatt/StealthApp.git
+cd StealthApp
 .\setup.bat
-.venv\Scripts\Activate.ps1
-python -m stealthapp
 ```
 
-macOS / Linux:
+#### macOS / Linux (Bash)
 ```bash
+git clone https://github.com/sarathithikkatt/StealthApp.git
+cd StealthApp
+chmod +x setup.sh
 ./setup.sh
-source .venv/bin/activate
-python -m stealthapp
 ```
 
-Command-line control
-```powershell
-python -m stealthapp start
-python -m stealthapp status
-python -m stealthapp stop
-```
+---
 
-Tips
-- To avoid loading the transcription model at startup, set `"audio_enabled": false` in `config.json`.
-- If you prefer the UI to start without audio or Ollama checks, set `audio_enabled` and `ollama_enabled` to `false`.
+## 🏃 Running StealthApp
 
-Hotkeys
-- Hold ALT: enter interactive mode
-- Release ALT: return to click-through
-- Ctrl+drag: move overlay
-- Ctrl+H: toggle visibility
+Before running, ensure your virtual environment is activated:
 
-Configuration (`config.json`)
+### Activate Virtual Environment
 
-`config.json` is created from `config.example.json` on first run. Useful keys:
-- `twitch_channel`, `youtube_video_id` — chat integration
-- `ollama_enabled`, `ollama_base_url`, `ollama_model` — Ollama settings
-- `audio_enabled`, `audio_device_index` — microphone capture
+- **Windows**:
+  ```powershell
+  .venv\Scripts\Activate.ps1
+  ```
+- **macOS / Linux**:
+  ```bash
+  source .venv/bin/activate
+  ```
 
-Dependencies & Installation
-- Install runtime dependencies into the virtual environment:
-```powershell
-python -m pip install -r requirements.txt
-```
-Or install individually:
-```powershell
-python -m pip install PyQt6 watchdog sounddevice numpy faster-whisper httpx av pytesseract pillow
-```
+### Command-Line Interface
 
-System Requirements & External Tools
+StealthApp provides a built-in CLI for easy management:
 
-- **Tesseract OCR**: Required for the Vision widget OCR features (used via `pytesseract`). Install Tesseract on your system and ensure `tesseract` is on your `PATH` or set `TESSDATA_PREFIX` to the tessdata folder.
-	- **Windows**: Download the installer (recommended: UB Mannheim build) or use Chocolatey:
-		```powershell
-		choco install tesseract
-		```
-	- **macOS**:
-		```bash
-		brew install tesseract
-		```
-	- **Debian/Ubuntu**:
-		```bash
-		sudo apt-get update
-		sudo apt-get install -y tesseract-ocr libtesseract-dev
-		```
-	- To add extra languages (example: Spanish): `sudo apt-get install tesseract-ocr-spa` (package names vary by distro).
-	- Verify installation:
-		```bash
-		tesseract --version
-		```
+- **Start StealthApp (Background)**:
+  ```bash
+  python -m stealthapp start
+  ```
+- **Start StealthApp (Foreground)**:
+  ```bash
+  python -m stealthapp start --foreground
+  ```
+- **Check Status**:
+  ```bash
+  python -m stealthapp status
+  ```
+- **Stop StealthApp**:
+  ```bash
+  python -m stealthapp stop
+  ```
 
-- **Ollama & Model (e.g. lamma3.1:8b)**: The app integrates with an Ollama instance for LLM-based features. Install and run Ollama, then pull the desired model.
-	- Install Ollama following the official instructions for your platform (installer/homebrew/choco). Ensure the `ollama` CLI is available.
-	- Pull the model (example name provided here as `lamma3.1:8b` — replace with the exact model you want):
-		```bash
-		ollama pull lamma3.1:8b
-		```
-	- Start the Ollama daemon if needed:
-		```bash
-		ollama daemon
-		```
-	- Configure the model in `config.json` using the `ollama_model` and `ollama_base_url` keys if you use a custom host or model name.
-	- Verify by running a quick inference or `ollama list` to see available models.
+*Note: On Windows, `python -m stealthapp start` uses `pythonw.exe` to run without a console window.*
 
-Notes
-- If Ollama or Tesseract are installed in non-standard locations, make sure to update environment variables or the `config.json` entries so the app can find them.
-- Model names and availability depend on your Ollama setup and downloaded images; replace `lamma3.1:8b` with the exact model identifier you intend to use.
-Notes
-- `sounddevice` installs PortAudio DLLs on Windows when installed via `pip`.
-- `faster-whisper` may require additional runtime libraries depending on platform and performance choices (CPU vs GPU).
+---
 
-Project layout
+## ⌨️ Hotkeys
 
-See `src/stealthapp/` for the application code. The overlay window is implemented in `src/stealthapp/core/overlay_window.py` and the widgets live under `src/stealthapp/widgets/`.
+- **Hold ALT**: Enter interactive mode (click on buttons/text).
+- **Release ALT**: Return to click-through (transparent) mode.
+- **Ctrl + Drag**: Move the overlay window.
+- **Ctrl + H**: Toggle visibility (Hide/Show).
 
-Contributing
-- Run `setup.bat` (Windows) or `setup.sh` (macOS/Linux) to create the venv and install editable deps.
-- Use `python -m stealthapp` to run from the repo root.
+---
 
-License: MIT
+## ⚙️ Configuration
+
+A `config.json` file is generated on the first run. You can customize:
+- `ollama_model`: The LLM model to use (e.g., `llama3`).
+- `audio_enabled`: Set to `true` to enable microphone transcription.
+- `ollama_enabled`: Set to `false` to disable AI features.
+- `opacity`: Adjust overlay transparency (0.0 to 1.0).
+
+---
+
+## 🛠️ Project Structure
+
+- `src/stealthapp/`: Core application logic.
+- `src/stealthapp/core/`: Window management, config, and OS-level capture exclusion.
+- `src/stealthapp/widgets/`: UI components (Vision, Audio, Ollama).
+- `src/stealthapp/ai/`: Background workers for OCR, Transcription, and Ollama integration.
+
+## 🤝 Contributing
+
+1. Clone the repository.
+2. Run `setup.bat` (Windows) or `setup.sh` (macOS/Linux).
+3. Activate the virtual environment.
+4. Run in foreground for development: `python -m stealthapp start --foreground`.
+
+## 📄 License
+
+MIT License
 
